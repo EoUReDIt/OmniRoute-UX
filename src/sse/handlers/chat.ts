@@ -38,6 +38,7 @@ import {
   resolveAvalancheSettings,
 } from "@omniroute/open-sse/services/accountFallback/antiAvalanche.ts";
 import { estimateTokens } from "@omniroute/open-sse/services/contextManager.ts";
+import { timeStage } from "@omniroute/open-sse/utils/stageTiming.ts";
 import { getCombo, getComboForModel, getModelInfo } from "../services/model";
 import { stripContextWindowSuffix } from "@omniroute/open-sse/services/model.ts";
 import { resolveBareModelToConnectionDefault } from "@omniroute/open-sse/services/model.ts";
@@ -758,7 +759,9 @@ async function handleChatImplementation(
 
   // Pipeline: API key policy enforcement (model restrictions + budget limits)
   telemetry.startPhase("policy");
-  const policy = await enforceApiKeyPolicy(request, modelStr, DEFER_METERED_BUDGET);
+  const policy = await timeStage("apiKey.policy", () =>
+    enforceApiKeyPolicy(request, modelStr, DEFER_METERED_BUDGET)
+  );
   if (policy.rejection) {
     log.warn(
       "POLICY",
@@ -810,8 +813,8 @@ async function handleChatImplementation(
   // resolution upstream (stripOrphanedCodexFunctionCallOutputs in codex.ts);
   // reconstructing and deleting the field here would make that downstream
   // "preserve" enforcement a no-op since the field would already be gone.
-  const settingsForContinuation = await getCachedSettings().catch(
-    () => ({}) as Record<string, unknown>
+  const settingsForContinuation = await timeStage("db.settings", () =>
+    getCachedSettings().catch(() => ({}) as Record<string, unknown>)
   );
   const previousResponseIdMode = normalizeResponsesPreviousResponseIdMode(
     (settingsForContinuation as { responsesPreviousResponseIdMode?: unknown })
@@ -1096,7 +1099,7 @@ async function handleChatImplementation(
 
   // Check if model is a combo (has multiple models with fallback)
   telemetry.startPhase("resolve");
-  let combo: any = await getComboForModel(resolvedModelStr);
+  let combo: any = await timeStage("combo.resolve", () => getComboForModel(resolvedModelStr));
   if (reasoningDecision?.targetCombo) combo = reasoningDecision.targetCombo;
 
   // "auto" prefix fuzzy matching: "auto/fast" → "auto/best-fast", etc.
@@ -1104,7 +1107,7 @@ async function handleChatImplementation(
   if (!combo && resolvedModelStr.startsWith("auto/")) {
     const suffix = resolvedModelStr.slice(5);
     for (const candidate of [`auto/best-${suffix}`, `auto/${suffix}`]) {
-      combo = await getComboForModel(candidate);
+      combo = await timeStage("combo.resolve", () => getComboForModel(candidate));
       if (combo) {
         log.info("ROUTING", `"${resolvedModelStr}" → combo "${candidate}" (auto fuzzy)`);
         break;
@@ -1197,7 +1200,8 @@ async function handleChatImplementation(
         return false;
       }
 
-      const creds = await getProviderCredentialsWithQuotaPreflight(
+      const creds = await timeStage("credentials", () =>
+        getProviderCredentialsWithQuotaPreflight(
         provider,
         null,
         allowedConnections,
@@ -1212,6 +1216,7 @@ async function handleChatImplementation(
           ...(bypassProviderQuotaPolicy ? { bypassQuotaPolicy: true } : {}),
           ...(managedLease ? { lease: credentialLease(managedLease) } : {}),
         }
+        )
       );
       const availability = getComboCredentialAvailability(creds);
       if (availability !== true) return availability;
@@ -1943,7 +1948,8 @@ async function handleSingleModelChat(
         for (const id of comboStalledConnectionIds(stalled, provider)) emptyTurnExcluded.add(id);
       }
       const selectCredentials = (excluded: Set<string>) =>
-        getProviderCredentialsWithQuotaPreflight(
+        timeStage("credentials", () =>
+          getProviderCredentialsWithQuotaPreflight(
           provider,
           null,
           museOwner ? [museOwner.connectionId] : effectiveAllowedConnections,
@@ -1990,6 +1996,7 @@ async function handleSingleModelChat(
                   : {};
             })(),
           }
+          )
         );
       let credentials =
         preselectedCredentials && emptyTurnExcluded.size === 0 && !agy.on && !museOwner
