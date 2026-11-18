@@ -449,7 +449,7 @@ Only when `routingHintCacheEnabled` is true:
 2. Optionally asks the local model to map a coarse task class (the same labels the keyword classifier already emits: code, math, reasoning, creative, simple, medium) onto the target that has been failing. The model call is async. A request never awaits it.
 3. Writes a SQLite table keyed by connection id, one record per connection, with a reason and a numeric `expiresAt`. Not one global row, and not process memory as the source of truth. A small in-process cache may mirror the table for reads. Section 13.4 says how a locked database and an expiry are handled.
 4. On a later request, if the flag is on and `Date.now()` is before `expiresAt`, the skip in section 13.4 may apply. It does not reorder inside `resolveComboTargets`. A model failure or timeout writes nothing. The reader ignores a missing, failed, or expired record before anyone deletes it.
-5. If the model is down, write nothing and ignore any expired record. Routing stays on today's order. Startup with the flag on and Ollama down behaves like the flag off for ordering, and the guide card shows one warning. `handleChat` does not await the worker. The test for that is in section 9.
+5. If the model is down, write nothing and ignore any expired record. A startup with the flag on and Ollama down does not behave like the flag off for ordering: a still-valid row written by an earlier process is still read until its `expiresAt`. Only a missing, failed, or expired record leaves today's order. The guide card shows one warning. `handleChat` does not await the worker. The test for that is in section 9.
 
 This helps the failure path (avoid a second paid, slow, or rate-limited hop). It does not shorten a clean first hop. Be explicit about that in the UI copy: "Skip providers that just failed", not "Faster responses".
 
@@ -480,7 +480,7 @@ The vector semantic cache could someday use a local embedding model and save a n
 
 ## 9. Test strategy
 
-The stage timer in this PR is the exception in section 6.5. `tests/unit/stage-timing.test.ts` runs with `OMNIROUTE_STAGE_TIMING` unset and checks that a `Response` passed through `timeStage` is the same object the caller built, with the same status and body, and that `timeStageSync` does the same. That is the proof the wrappers do not change a response when the variable is unset. A test that only checks "no spans were stored" is not enough on its own. Later phases use the suites below.
+The stage timer in this PR is the exception in section 6.5. `tests/unit/stage-timing.test.ts` runs with `OMNIROUTE_STAGE_TIMING` unset. The identity check is only the `Response` passed through `timeStage`: that return is the same object. The async and sync cases build new `Response` objects and compare status, headers, and body. That is the proof the wrappers do not change a response when the variable is unset. A test that only checks "no spans were stored" is not enough on its own. Later phases use the suites below.
 
 **Prove Full view and the gateway did not change**
 
