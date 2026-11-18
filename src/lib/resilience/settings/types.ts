@@ -39,6 +39,15 @@ export interface RequestQueueSettings {
    * = disabled, preserving the unbounded-queue behavior. Bounded 0-100000.
    */
   maxQueueDepth: number;
+  /**
+   * When true (default), a 429 that carries no Retry-After and no body retry
+   * hint is handed back immediately if another healthy connection can take it,
+   * instead of sleeping on the same key. The same-key retry (RETRY_CONFIG,
+   * 2s with jitter, up to 2 times) still runs when this is false, when the
+   * 429 carries a hint, or when no healthy alternate exists. Set false to
+   * restore the previous always-same-key wait.
+   */
+  failoverHintless429: boolean;
 }
 
 /**

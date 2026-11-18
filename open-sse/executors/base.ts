@@ -42,11 +42,7 @@ import {
 import { gateOutboundRequest } from "../services/wafRateLimit.ts";
 import { readErrorBodyText } from "../utils/error.ts";
 import { ClaudeUsageLimitGuard } from "./claudeUsageLimit.ts";
-import {
-  INTRA_RETRY_MAX_HINT_MS,
-  readRateLimitRetryHintMs,
-  shouldSkipIntraRetryFor429,
-} from "./rateLimitIntraRetry.ts";
+import { INTRA_RETRY_MAX_HINT_MS, readRateLimitRetryHintMs } from "./rateLimitIntraRetry.ts";
 import type { PoolConfig } from "../services/sessionPool/types.ts";
 import type { Session } from "../services/sessionPool/session.ts";
 import { SessionPool } from "../services/sessionPool/sessionPool.ts";
@@ -237,6 +233,12 @@ export type ExecuteInput = {
   ) => Promise<void> | void;
   /** When true, skip the intra-URL 429 retry in execute() so the caller handles fallback. */
   skipUpstreamRetry?: boolean;
+  /**
+   * When true, a 429 with no retry hint is returned immediately so the caller
+   * can use another connection. A Retry-After / body hint is still honored.
+   * Absent or false keeps the same-key RETRY_CONFIG wait.
+   */
+  deferHintless429?: boolean;
   /** In-process capability; never accepted from an HTTP body or client header. */
   validationDispatch?: StrictValidationDispatch;
   /** Request-scoped id for log attribution; absent off the chat path, never fabricated. */
@@ -775,6 +777,7 @@ export class BaseExecutor {
       upstreamExtraHeaders,
       clientHeaders,
       skipUpstreamRetry = false,
+      deferHintless429 = false,
       onCredentialsRefreshed,
       contextEditing,
     } = input;
@@ -1843,30 +1846,40 @@ export class BaseExecutor {
         // Skipped when the 429 carries a retry hint longer than the retry window (Gemini free-tier
         // RetryInfo "37s", Retry-After: 60): the same-account retries cannot succeed and only burn
         // upstream calls before the caller rotates to the next account.
-        if (
-          !skipUpstreamRetry &&
-          response.status === HTTP_STATUS.RATE_LIMITED &&
-          (retryAttemptsByUrl[urlIndex] ?? 0) < BaseExecutor.RETRY_CONFIG.maxAttempts &&
-          !(await shouldSkipIntraRetryFor429(response))
-        ) {
-          retryAttemptsByUrl[urlIndex] = (retryAttemptsByUrl[urlIndex] ?? 0) + 1;
-          const attempt = retryAttemptsByUrl[urlIndex];
-          // Honor the upstream retry hint (Retry-After header / body) when it
-          // sits inside the intra-retry window — the skip guard above already
-          // dropped anything larger, so the wait is bounded by
-          // INTRA_RETRY_MAX_HINT_MS. Without a hint, jitter the fixed delay.
+        // Also skipped, before the 2s same-key sleep, when the caller has another healthy
+        // connection and the 429 carries no hint. A hint inside the window is still waited out.
+        // With no alternate (deferHintless429 false) the same-key wait is unchanged.
+        if (!skipUpstreamRetry && response.status === HTTP_STATUS.RATE_LIMITED) {
           const hintMs = await readRateLimitRetryHintMs(response);
-          const waitMs =
-            hintMs !== null && hintMs <= INTRA_RETRY_MAX_HINT_MS
-              ? hintMs
-              : BaseExecutor.jitterRetryDelayMs(BaseExecutor.RETRY_CONFIG.delayMs);
-          log?.debug?.(
-            "RETRY",
-            `429 intra-retry ${attempt}/${BaseExecutor.RETRY_CONFIG.maxAttempts} on ${url} — waiting ${waitMs}ms${hintMs !== null ? " (upstream hint)" : ""}`
-          );
-          await new Promise((resolve) => setTimeout(resolve, waitMs));
-          urlIndex--; // re-run this urlIndex on the next loop iteration
-          continue;
+          const hintExceedsWindow = hintMs !== null && hintMs > INTRA_RETRY_MAX_HINT_MS;
+          const handOffHintless = deferHintless429 === true && hintMs === null;
+          if (
+            !hintExceedsWindow &&
+            !handOffHintless &&
+            (retryAttemptsByUrl[urlIndex] ?? 0) < BaseExecutor.RETRY_CONFIG.maxAttempts
+          ) {
+            retryAttemptsByUrl[urlIndex] = (retryAttemptsByUrl[urlIndex] ?? 0) + 1;
+            const attempt = retryAttemptsByUrl[urlIndex];
+            // Honor the upstream retry hint (Retry-After header / body) when it
+            // sits inside the intra-retry window. Without a hint, jitter the fixed delay.
+            const waitMs =
+              hintMs !== null && hintMs <= INTRA_RETRY_MAX_HINT_MS
+                ? hintMs
+                : BaseExecutor.jitterRetryDelayMs(BaseExecutor.RETRY_CONFIG.delayMs);
+            log?.debug?.(
+              "RETRY",
+              `429 intra-retry ${attempt}/${BaseExecutor.RETRY_CONFIG.maxAttempts} on ${url} — waiting ${waitMs}ms${hintMs !== null ? " (upstream hint)" : ""}`
+            );
+            await new Promise((resolve) => setTimeout(resolve, waitMs));
+            urlIndex--; // re-run this urlIndex on the next loop iteration
+            continue;
+          }
+          if (handOffHintless) {
+            log?.debug?.(
+              "RETRY",
+              `429 without Retry-After on ${url} — handing off before the same-key wait`
+            );
+          }
         }
 
         // T07: Handle 401 authentication errors — log and continue to fallback

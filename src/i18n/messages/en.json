@@ -9388,6 +9388,8 @@
     "resilienceRequestQueueEffect": "Queues requests, limits concurrency, and spaces out calls",
     "resilienceRequestQueueDesc": "This layer only controls queueing and pacing. It does not store cooldowns or open circuit breakers.",
     "resilienceAutoEnableApiKeyProvidersDesc": "Enables queue protection by default for active API key connections.",
+    "resilienceFailoverHintless429": "Fail over a hintless 429 before the same-key wait",
+    "resilienceFailoverHintless429Desc": "When another healthy connection exists, a 429 with no Retry-After is handed to that connection immediately. The same key is still retried when it is the only healthy one, and a Retry-After hint is still waited out. Turn this off to restore the previous 2 second same-key retry. Set Minimum time between requests to 350 to restore the previous gap.",
     "resilienceMaxQueueWait": "Maximum queue wait time",
     "resilienceMaxExecutionWait": "Execution timeout (rate-limit backstop)",
     "resilienceConnectionCooldownScope": "Individual connection",

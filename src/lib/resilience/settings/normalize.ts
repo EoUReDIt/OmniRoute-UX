@@ -151,6 +151,10 @@ export function normalizeRequestQueueSettings(
     min: 0,
     max: 100_000,
   });
+  const failoverHintless429 = toBoolean(
+    record.failoverHintless429,
+    fallback.failoverHintless429 ?? true
+  );
 
   return {
     autoEnableApiKeyProviders: toBoolean(
@@ -164,6 +168,7 @@ export function normalizeRequestQueueSettings(
     maxWaitMs,
     executionMaxWaitMs,
     maxQueueDepth,
+    failoverHintless429,
   };
 }
 

@@ -101,6 +101,7 @@ export const DEFAULT_RESILIENCE_SETTINGS: ResilienceSettings = {
     maxWaitMs: DEFAULT_REQUEST_QUEUE_MAX_WAIT_MS,
     executionMaxWaitMs: DEFAULT_REQUEST_QUEUE_EXECUTION_MAX_WAIT_MS,
     maxQueueDepth: DEFAULT_REQUEST_QUEUE_MAX_DEPTH,
+    failoverHintless429: true,
   },
   connectionCooldown: {
     oauth: {
@@ -308,6 +309,7 @@ function buildLegacyFallback(settings: JsonRecord): ResilienceSettings {
       maxWaitMs: DEFAULT_RESILIENCE_SETTINGS.requestQueue.maxWaitMs,
       executionMaxWaitMs: DEFAULT_RESILIENCE_SETTINGS.requestQueue.executionMaxWaitMs,
       maxQueueDepth: DEFAULT_RESILIENCE_SETTINGS.requestQueue.maxQueueDepth,
+      failoverHintless429: DEFAULT_RESILIENCE_SETTINGS.requestQueue.failoverHintless429,
     },
     connectionCooldown: {
       oauth: normalizeLegacyConnectionCooldownProfile(

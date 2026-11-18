@@ -25,6 +25,7 @@ type RequestQueueSettings = {
   globalConcurrentRequests: number;
   maxWaitMs: number;
   executionMaxWaitMs: number;
+  failoverHintless429: boolean;
 };
 
 type CredentialHealthCheckSettings = {
@@ -254,6 +255,14 @@ function RequestQueueCard({
                 setDraft((prev) => ({ ...prev, autoEnableApiKeyProviders }))
               }
             />
+            <BooleanField
+              label={t("resilienceFailoverHintless429")}
+              description={t("resilienceFailoverHintless429Desc")}
+              checked={draft.failoverHintless429}
+              onChange={(failoverHintless429) =>
+                setDraft((prev) => ({ ...prev, failoverHintless429 }))
+              }
+            />
             <NumberField
               label={t("resilienceRequestsPerMinute")}
               value={draft.requestsPerMinute}
@@ -309,6 +318,12 @@ function RequestQueueCard({
               </div>
               <div className="mt-1 text-sm font-semibold text-text-main">
                 {value.autoEnableApiKeyProviders ? t("statusEnabled") : t("statusDisabled")}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-bg-subtle p-4">
+              <div className="text-xs text-text-muted">{t("resilienceFailoverHintless429")}</div>
+              <div className="mt-1 text-sm font-semibold text-text-main">
+                {value.failoverHintless429 ? t("statusEnabled") : t("statusDisabled")}
               </div>
             </div>
             <div className="rounded-xl border border-border bg-bg-subtle p-4">

@@ -51,6 +51,9 @@ export const requestQueueSettingsSchema = z
     maxWaitMs: z.number().int().min(0).optional(),
     executionMaxWaitMs: z.number().int().min(1).optional(),
     maxQueueDepth: z.number().int().min(0).max(100_000).optional(),
+    // Proposal default true. False restores the 2s same-key 429 retry even
+    // when another healthy connection exists.
+    failoverHintless429: z.boolean().optional(),
   })
   .strict();
 

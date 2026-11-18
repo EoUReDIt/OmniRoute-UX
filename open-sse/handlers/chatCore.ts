@@ -475,6 +475,7 @@ async function handleChatCoreInner({
   comboExecutionKey = null,
   cachedSettings = null,
   skipUpstreamRetry = false,
+  failoverHintless429 = undefined,
   createPiiTransform = null,
   correlationId = null,
   conversationId = null,
@@ -677,17 +678,17 @@ async function handleChatCoreInner({
   // rather than re-deriving it. (#3821-review LEDGER-6)
   const { hit: idempotencyHit, idempotencyKey } = await timeStage("cache.idempotency", () =>
     checkIdempotencyCache({
-    clientRawRequest,
-    provider,
-    model,
-    // NEXA fusion-idempotency fix: body.messages feeds the key digest so combo-internal sub-requests
-    // (fusion panel + judge share the client's headers) never collide on the raw header key.
-    body,
-    apiKeyId: apiKeyInfo?.id ?? null,
-    effectiveServiceTier,
-    startTime,
-    log,
-    videoTranscriptSensitive: videoBridgeObserved,
+      clientRawRequest,
+      provider,
+      model,
+      // NEXA fusion-idempotency fix: body.messages feeds the key digest so combo-internal sub-requests
+      // (fusion panel + judge share the client's headers) never collide on the raw header key.
+      body,
+      apiKeyId: apiKeyInfo?.id ?? null,
+      effectiveServiceTier,
+      startTime,
+      log,
+      videoTranscriptSensitive: videoBridgeObserved,
     })
   );
   if (idempotencyHit) {
@@ -2742,6 +2743,11 @@ async function handleChatCoreInner({
     resilienceSettings,
     settings,
     skipUpstreamRetry,
+    failoverHintless429:
+      (typeof failoverHintless429 === "boolean"
+        ? failoverHintless429
+        : resilienceSettings.requestQueue.failoverHintless429 === true) && !forcedConnectionId,
+    allowedConnectionIds: Array.isArray(allowedConnections) ? allowedConnections : null,
     requestUpstreamStartTimeoutMs,
     stream,
     streamController,

@@ -1202,20 +1202,20 @@ async function handleChatImplementation(
 
       const creds = await timeStage("credentials", () =>
         getProviderCredentialsWithQuotaPreflight(
-        provider,
-        null,
-        allowedConnections,
-        resolvedModel,
-        {
-          connectionRestrictionSources: restrictions.sources,
-          requireToolCalling: hasQoderCallerTools(body),
-          sessionKey: sessionAffinityKey,
-          preferredConnectionIds: apiKeyInfo?.preferredConnections ?? null,
-          ...(target?.allowRateLimitedConnection ? { allowRateLimitedConnections: true } : {}),
-          ...(target?.connectionId ? { forcedConnectionId: target.connectionId } : {}),
-          ...(bypassProviderQuotaPolicy ? { bypassQuotaPolicy: true } : {}),
-          ...(managedLease ? { lease: credentialLease(managedLease) } : {}),
-        }
+          provider,
+          null,
+          allowedConnections,
+          resolvedModel,
+          {
+            connectionRestrictionSources: restrictions.sources,
+            requireToolCalling: hasQoderCallerTools(body),
+            sessionKey: sessionAffinityKey,
+            preferredConnectionIds: apiKeyInfo?.preferredConnections ?? null,
+            ...(target?.allowRateLimitedConnection ? { allowRateLimitedConnections: true } : {}),
+            ...(target?.connectionId ? { forcedConnectionId: target.connectionId } : {}),
+            ...(bypassProviderQuotaPolicy ? { bypassQuotaPolicy: true } : {}),
+            ...(managedLease ? { lease: credentialLease(managedLease) } : {}),
+          }
         )
       );
       const availability = getComboCredentialAvailability(creds);
@@ -1950,52 +1950,52 @@ async function handleSingleModelChat(
       const selectCredentials = (excluded: Set<string>) =>
         timeStage("credentials", () =>
           getProviderCredentialsWithQuotaPreflight(
-          provider,
-          null,
-          museOwner ? [museOwner.connectionId] : effectiveAllowedConnections,
-          model,
-          {
-            connectionRestrictionSources: restrictions.sources,
-            requireToolCalling: hasQoderCallerTools(body),
-            sessionKey: museOwner ? null : occupancySessionKey,
-            preferredConnectionIds: apiKeyInfo?.preferredConnections ?? null,
-            reserveOAuthSession: true,
-            excludeConnectionIds: Array.from(excluded),
-            ...(hasForcedConnection && !isCombo ? { explicitConnectionPin: true } : {}),
-            ...(agy.on ? { reserveAntigravityLease: true, routingRequestId: agy.requestId } : {}),
-            ...(runtimeOptions.allowRateLimitedConnection
-              ? { allowRateLimitedConnections: true }
-              : {}),
-            ...(forceLiveComboTest
-              ? {
-                  allowSuppressedConnections: true,
-                  bypassQuotaPolicy: true,
-                }
-              : {}),
-            ...(!forceLiveComboTest && bypassProviderQuotaPolicy
-              ? { bypassQuotaPolicy: true }
-              : {}),
-            ...(runtimeOptions.managedLease
-              ? { lease: credentialLease(runtimeOptions.managedLease) }
-              : {}),
-            ...(() => {
-              const effectiveForcedId = resolveForcedConnectionForCredentialPool({
-                forcedConnectionId: forcedConnectionId || null,
-                excludedConnectionIds: excluded,
-                connections: [],
-                allowRateLimitedConnections:
-                  runtimeOptions.allowRateLimitedConnection === true || forceLiveComboTest,
-                bypassQuotaPolicy: forceLiveComboTest || bypassProviderQuotaPolicy,
-                isQuotaExhausted: () => false,
-                isQuotaPolicyBlocked: () => false,
-              });
-              return museOwner
-                ? { forcedConnectionId: museOwner.connectionId }
-                : effectiveForcedId
-                  ? { forcedConnectionId: effectiveForcedId }
-                  : {};
-            })(),
-          }
+            provider,
+            null,
+            museOwner ? [museOwner.connectionId] : effectiveAllowedConnections,
+            model,
+            {
+              connectionRestrictionSources: restrictions.sources,
+              requireToolCalling: hasQoderCallerTools(body),
+              sessionKey: museOwner ? null : occupancySessionKey,
+              preferredConnectionIds: apiKeyInfo?.preferredConnections ?? null,
+              reserveOAuthSession: true,
+              excludeConnectionIds: Array.from(excluded),
+              ...(hasForcedConnection && !isCombo ? { explicitConnectionPin: true } : {}),
+              ...(agy.on ? { reserveAntigravityLease: true, routingRequestId: agy.requestId } : {}),
+              ...(runtimeOptions.allowRateLimitedConnection
+                ? { allowRateLimitedConnections: true }
+                : {}),
+              ...(forceLiveComboTest
+                ? {
+                    allowSuppressedConnections: true,
+                    bypassQuotaPolicy: true,
+                  }
+                : {}),
+              ...(!forceLiveComboTest && bypassProviderQuotaPolicy
+                ? { bypassQuotaPolicy: true }
+                : {}),
+              ...(runtimeOptions.managedLease
+                ? { lease: credentialLease(runtimeOptions.managedLease) }
+                : {}),
+              ...(() => {
+                const effectiveForcedId = resolveForcedConnectionForCredentialPool({
+                  forcedConnectionId: forcedConnectionId || null,
+                  excludedConnectionIds: excluded,
+                  connections: [],
+                  allowRateLimitedConnections:
+                    runtimeOptions.allowRateLimitedConnection === true || forceLiveComboTest,
+                  bypassQuotaPolicy: forceLiveComboTest || bypassProviderQuotaPolicy,
+                  isQuotaExhausted: () => false,
+                  isQuotaPolicyBlocked: () => false,
+                });
+                return museOwner
+                  ? { forcedConnectionId: museOwner.connectionId }
+                  : effectiveForcedId
+                    ? { forcedConnectionId: effectiveForcedId }
+                    : {};
+              })(),
+            }
           )
         );
       let credentials =
@@ -2369,6 +2369,9 @@ async function handleSingleModelChat(
             providerProfile,
             cachedSettings: runtimeOptions.cachedSettings,
             skipUpstreamRetry: runtimeOptions.skipUpstreamRetry ?? false,
+            failoverHintless429:
+              resolveResilienceSettings(cachedRuntimeSettings).requestQueue.failoverHintless429 ===
+              true,
             correlationId: runtimeOptions?.correlationId ?? null,
             conversationId: runtimeOptions?.conversationId ?? null,
             modelPinned: runtimeOptions?.modelPinned ?? false,
