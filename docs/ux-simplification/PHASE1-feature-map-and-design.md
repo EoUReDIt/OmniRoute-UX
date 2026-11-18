@@ -330,7 +330,7 @@ A short nav, in this order. Each item mounts the existing page, not a copy of it
 | Try         | `/dashboard/playground`                                                   | The chat tab.                                                                                                                          | Compare, raw API, build.                                                                                      |
 | Health      | `/dashboard/health`                                                       | Up or down, and the last error if the page already shows one.                                                                          | The rest of that page stays on the page, below the fold, not deleted.                                         |
 
-Command Palette stays, and it searches the full `SIDEBAR_SECTIONS` catalog, not the short nav. That is the guaranteed way to reach compression, combos, audit, flags, and everything else without hunting for the header switch. Choosing a hidden area opens the existing page in the simple shell. It does not silently flip the mode.
+The command palette stays in the header, including the compact search button already rendered below the `md` breakpoint in `src/shared/components/Header.tsx`. Today's palette does **not** search the whole catalog. `CommandPalette.tsx` drops any id in `hiddenSidebarItems`, except the essentials preset's `ESSENTIALS_ADVANCED_TOOL_IDS`. Simple view must not reuse that filter. Its palette lists every item in `SIDEBAR_SECTIONS` (plus a runtime Radar Admin link when that setting is valid). Full view keeps the current filter. Choosing a result opens the existing page in the simple shell and does not change `dashboardUiMode`. A route that is not in the short nav shows the advanced-screen banner from section 13.
 
 ### 6.4 Onboarding
 
@@ -443,8 +443,8 @@ Only when `routingHintCacheEnabled` is true:
 
 1. A worker outside the request reads recent outcomes (success, 429, 5xx, cooldown) from the stores the logs and resilience pages already use.
 2. Optionally asks the local model to map a coarse task class (the same labels the keyword classifier already emits: code, math, reasoning, creative, simple, medium) onto the target that has been failing. The model call is async. A request never awaits it.
-3. Writes a small in-memory map: task class → target to deprioritize, with a timestamp.
-4. On a later `auto` combo, if the flag is on and the hint is fresher than a few minutes, `resolveComboTargets` skips a target the breaker or cooldown would also skip, or moves a repeatedly failing target behind a healthy one. It uses the same gates as today (`open-sse/services/combo/executeTargetGates.ts`). The hint is not allowed to send a request to a target the breaker has opened, and it is not allowed to bypass quota or policy.
+3. Writes one SQLite row: connection id, reason, and a numeric `expiresAt`. Not process memory. Workers would each keep their own map.
+4. On a later request, if the flag is on and `Date.now()` is before `expiresAt`, the skip in section 13 may move that connection behind another target the gates have not rejected. A model failure or timeout writes nothing and the reader ignores the row. A later success on that connection, or its breaker leaving OPEN, deletes the row.
 5. If the model is down, the map simply stops updating. Routing falls back to today's order. Startup with the flag on and Ollama down must behave like the flag off for scoring, and surface a single warning on the guide card.
 
 This helps the failure path (avoid a second paid, slow, or rate-limited hop). It does not shorten a clean first hop. Be explicit about that in the UI copy: "Skip providers that just failed", not "Faster responses".
@@ -524,7 +524,7 @@ Milestone 6 is the only one allowed to touch combo ordering, and only behind the
 
 Engineering time for one person who already has this tree, not calendar time with review queues.
 
-**Phase 2, Simple view and the switch** (milestones 2 and 3). One settings field, a header control, a short nav that mounts the existing pages, the welcome-step radio, English strings, a unit round-trip, and one Playwright spec on top of the sidebar specs that already exist. The pages are not rewritten. About **4 engineering days**. Three if the shell is only a filter. Five if the checklist has to be checked in the browser on web and Electron. **Hold:** do not start Phase 2 until the Reliability Reviewer's findings are in. This note does not authorize that build.
+**Phase 2, Simple view and the switch** (milestones 2 and 3). One settings field, a header control, a short nav that mounts the existing pages, the welcome-step radio, English strings, a unit round-trip, and one Playwright spec on top of the sidebar specs that already exist. The pages are not rewritten. About **4 engineering days**. Three if the shell is only a filter. Five if the checklist has to be checked in the browser on web and Electron. The Reliability Reviewer's findings are now section 13. This commit still does not start the build.
 
 **Phase 3, the local model** (milestones 5 and 6). Wiring narration to an existing `ollama-local` or `llama-cpp` connection, the prompt allow-list, the confirm-only MCP checklist, and an async hint that is off by default. About **8 to 12 engineering days**. That does not include changing the 350 ms queue floor or the 2 second 429 retry. Those are smaller diffs and a separate decision, because they change default behavior. The model work does not remove the upstream's own time, and on the warm success path the measured routing work left after the queue floor is about 10 ms.
 
@@ -542,7 +542,55 @@ Phase 2 implementation waits for the Reliability Reviewer's findings.
 
 1. **Retry policy versus the hint.** The warm success path is the 350 ms queue floor plus the upstream. The painful failure path is the first 429's same-key sleeps (one trace 4253 ms, another 2903 ms), and the following requests were already cheap. A behavior change to that retry is separate from the approved model. The model still does not speed up a successful upstream.
 2. **Who starts the runtime.** The approved design does not spawn Ollama or llama-server and does not download weights in the first model milestone. A later click-to-pull against the already configured local URL is still undecided.
-3. **Command palette in Simple view.** This note keeps it searching every sidebar entry, so nothing is unreachable. Limiting that search to the short nav is still undecided.
+3. **Command palette in Simple view.** Closed by section 13. Simple view searches every `SIDEBAR_SECTIONS` item. Full view keeps today's `hiddenSidebarItems` filter.
+
+## 13. Reliability requirements for Phase 2 and Phase 3
+
+Checked against the tree on 2026-11-18. Phase 2 is the switch and the simple shell. Phase 3 is the guide and the hint. Items the reviewer marked provisional are included, narrowed by section 4.2: the guide and the hint stay off the chat hot path, and a timed-out model changes nothing.
+
+### 13.1 Settings field
+
+`PATCH /api/settings` validates with `updateSettingsSchema` (`src/shared/validation/settingsSchemas.ts`). A `z.object` strips unknown keys. The handler returns 200 and lists them as `ignoredKeys` (`src/app/api/settings/route.ts`, the block after `validateBody`). That already dropped `hideAutoCombos` and `comboAutoPromoteEnabled` until those keys were added to the schema. The comments next to those keys say so.
+
+Phase 2 adds `dashboardUiMode` to that schema as an optional enum of `original` and `simple`, and to the defaults merged in `getSettings` (`src/lib/db/settings.ts`). The read and write normalizer maps every value other than the string `simple` to `original`, including a missing key. Existing databases therefore stay on Full view. A brand-new install still becomes Simple only when the wizard's Continue writes `simple`.
+
+`POST /api/settings/import-json` checks each key with `updateSettingsSchema.partial()`. A key the schema does not know is kept. A key the schema knows but rejects is dropped. Making `dashboardUiMode` optional means a backup that omits it still imports. An invalid value is dropped, and the default `original` applies. The field must not be required.
+
+`localGuideEnabled` and `routingHintCacheEnabled` are feature flags, not settings keys. `setFeatureFlagOverride` throws `Unknown feature flag key` when the key is absent from `FEATURE_FLAG_DEFINITIONS` (`src/lib/db/featureFlags.ts`). Both flags are added to that catalog with `defaultValue` `"false"` before any override is written.
+
+### 13.2 The switch
+
+The control lives in `Header` (`src/shared/components/Header.tsx`). Visible text is **Simple view** and **Full view**. The stored value `original` is shown as Full view. Do not use the words Simple and Advanced. Caveman and RTK already use that pair on their own pages.
+
+The control is a real button or switch: a text label, `aria-pressed` or `aria-checked` for the current mode, and keyboard activation. It stays on screen under 1024 px, in a compact form. The header's existing command-palette buttons stay. There is already a desktop button (`hidden md:inline-flex`) and a compact one (`md:hidden`).
+
+A Simple-view visit to a route outside the short nav renders the existing page plus a banner: this is an advanced screen, with **Back to Home** (`/home`) and **Open in Full view** (writes `original`). The banner is not a second copy of the page.
+
+### 13.3 Guide prompt and calls
+
+`GET /api/settings` decrypts `oidcClientSecret` and `entraGraphClientSecret` (`ENCRYPTED_SETTING_KEYS` and the decrypt loop in `getSettings`) and returns them. It strips the management password and the session-revocation fields, then spreads the rest. `customSystemPrompt` is not in the encrypted set. It is still in that JSON as plain text. The reviewer grouped it with the decrypted secrets. The requirement is the same either way.
+
+The guide prompt is built on the server from an allowlisted DTO: base URL, whether MCP is enabled, the transport enum, whether any client key exists (a boolean), and MCP tool names. It is never the raw settings object and never the raw `GET /api/mcp/tools` body. That route also returns `description`, `scopes`, `phase`, `auditLevel`, and `sourceEndpoints`.
+
+The prompt denylist, enforced by a fixture test, includes `oidcClientSecret`, `entraGraphClientSecret`, `customSystemPrompt`, the body of `GET /api/keys/[id]/reveal`, the secret returned by `POST /api/keys`, and provider connection payloads. The fixture feeds a settings object that contains `oidcClientSecret` and asserts the prompt string does not contain it.
+
+The guide does not call `handleSwitchCombo` or `handleCreateCombo` (`open-sse/mcp-server/tools/opsTools.ts`), and it does not call dashboard routes that write. The operator presses the existing buttons. Phase 3 does not change `shouldForceScopeEnforcement` (`open-sse/mcp-server/scopeEnforcement.ts`) or `localOnlyManageScopeBypassEnabled`.
+
+A browser page must not call Ollama, llama.cpp, or LM Studio itself. A remote dashboard would hit the operator's loopback and the runtime's CORS. Phase 3 adds a server route that is enabled only when `localGuideEnabled` is true. It may call only the base URL already stored on an `ollama-local`, `llama-cpp`, or `lm-studio` connection. The request body cannot supply a URL. The call has a hard timeout of 8000 ms. On timeout, non-200, or no such connection, the route returns the static checklist and does not throw into the page.
+
+The hint worker uses the same proxy and the same 8000 ms timeout. A failure or a timeout does not write a hint.
+
+### 13.4 Hint cache
+
+There is no file named `resolveComboTargets`. The function is `resolveComboTargets` in `open-sse/services/combo/comboStructure.ts`. It only orders targets. It does not run gates. The earlier draft that put the skip there was wrong.
+
+The gate is `evaluateExecuteTargetGates` in `open-sse/services/combo/executeTargetGates.ts`. `dispatchWithCooldownRetry` calls it from the inner `executeTarget` in `open-sse/services/combo/comboAttemptLoop.ts`, and only then calls `executeAttempt`. An OPEN breaker, a provider cooldown, and a persisted connection cooldown already return `kind: "skip"` from that function.
+
+Phase 3 may consult the hint only inside that `executeTarget`, after the gate, and only when the flag is on, the row's `expiresAt` is still in the future, and the model call that produced the row did not fail or time out. If the gate returned skip, the hint cannot un-skip, including `circuit_open`. If the gate did not skip, the hint may skip only when a recent 429 or 5xx on that same connection agrees, and at least one other ordered target has not been gate-rejected. It must not skip the last target that can still run. It must not bypass quota, API-key policy, or an OPEN breaker.
+
+The 429 trace in section 4.2 was not a combo. It was two connections on one provider, through `handleSingleModelChat` in `src/sse/handlers/chat.ts` (`selectCredentials`). The same rules apply there: the hint may drop a connection only when a recent failure agrees, a healthy connection remains, and quota, policy, and an OPEN breaker still win.
+
+The row is deleted when that connection later succeeds, or when its breaker is no longer OPEN. The TTL is 120000 ms, stored as `expiresAt`, not a prose window.
 
 ## Appendix — every `page.tsx` route on this branch
 
