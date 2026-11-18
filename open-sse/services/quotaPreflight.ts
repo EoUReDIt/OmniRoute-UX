@@ -19,6 +19,7 @@
  */
 
 import { isCompatibleProviderConnectionId } from "@/shared/utils/compatibleProviderId";
+import { timeStage } from "../utils/stageTiming.ts";
 import { isRegisteredFeatureFlagEnabled } from "../utils/registeredFeatureFlag.ts";
 import { isClaudeExtraUsageAllowed } from "@/lib/providers/claudeExtraUsage";
 import { isCodexQuotaFilteringDisabled } from "@/lib/providers/codexQuotaFiltering";
@@ -581,7 +582,7 @@ export async function preflightQuota(
 
   let quota: QuotaInfo | null = null;
   try {
-    quota = await fetcher(connectionId, connection);
+    quota = await timeStage("quota.fetch", () => fetcher(connectionId, connection));
   } catch {
     return evaluateQuotaCutoff(null, thresholds, scope);
   }

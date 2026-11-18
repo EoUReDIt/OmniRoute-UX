@@ -44,6 +44,7 @@ import {
   isCommonChatGptWebRetirementError,
 } from "@/shared/constants/chatgptWebRetirement";
 import { ensureSemanticCacheDbBridge } from "@/lib/cache/semanticCacheDbBridge";
+import { timeStage, timeStageSync } from "@omniroute/open-sse/utils/stageTiming.ts";
 import { maybeQueueQuotaSessionRecovery } from "@/lib/quota/quotaSessionRecovery";
 import {
   getBifrostRoutingConfig,
@@ -117,7 +118,7 @@ export async function POST(request) {
   // its matcher can miss path variants (e.g. uppercase /V1/ aliases), so the
   // handler enforces authentication independently. Without this, a proxy
   // bypass means unauthenticated upstream dispatch.
-  const authRejection = await enforceClientApiRouteAuth(request);
+  const authRejection = await timeStage("auth", () => enforceClientApiRouteAuth(request));
   if (authRejection) return authRejection;
 
   // Content-Type guard (#6414) — reject non-JSON POST bodies with 415 per RFC 7231.
@@ -144,10 +145,12 @@ export async function POST(request) {
   // The slow-stream deadline is created only after the route knows this is a streaming
   // request; non-streaming calls keep the framework Request object untouched.
   const sessionId = resolveSessionId(request);
-  const admissionResult = await admitChatRequest(request, {
-    sessionId,
-    queueMs: CHAT_ADMISSION_QUEUE_MAX_MS,
-  });
+  const admissionResult = await timeStage("admission", () =>
+    admitChatRequest(request, {
+      sessionId,
+      queueMs: CHAT_ADMISSION_QUEUE_MAX_MS,
+    })
+  );
   if (admissionResult.admit === false) {
     void logAdmissionRejection(admissionResult.response, {
       path: new URL(request.url).pathname,
@@ -184,7 +187,7 @@ export async function POST(request) {
     // admitChatRequest(), so json() parses them directly — no clone(), no second stream read.
     let parsedBody = null;
     try {
-      parsedBody = await request.json().catch(() => null);
+      parsedBody = await timeStage("body.parse", () => request.json().catch(() => null));
       if (parsedBody) {
         // Route-level shape gate (T06) — validates the object already parsed above; it
         // never reads the request body a second time. See chatCompletionsRouteShapeSchema
@@ -282,12 +285,14 @@ export async function POST(request) {
 
         // Resolve model alias before forwarding to handleChat
         if (parsedBody && typeof parsedBody === "object") {
-          await resolveModelAliasWithSeedFallbackOnBody(parsedBody).catch(() => {
-            /* swallow — fall through with original model */
-          });
+          await timeStage("model.alias", () =>
+            resolveModelAliasWithSeedFallbackOnBody(parsedBody).catch(() => {
+              /* swallow — fall through with original model */
+            })
+          );
         }
 
-        const { blocked, result } = injectionGuard(parsedBody);
+        const { blocked, result } = timeStageSync("injection", () => injectionGuard(parsedBody));
         if (blocked) {
           return finishAdmission(
             new Response(
@@ -402,7 +407,9 @@ export async function POST(request) {
       // client cancels while handleChat is still pending, earlyStreamKeepalive will cancel the
       // eventual handler body; only that confirmed cleanup releases heavyweight capacity.
       const handlerResponse = releaseChatAdmissionAfterHandler(
-        handleChat(request, null, parsedBody, reqId, routeDeadlineSignal),
+        timeStage("handleChat", () =>
+          handleChat(request, null, parsedBody, reqId, routeDeadlineSignal)
+        ),
         admission.lease,
         { signal: routeDeadlineSignal }
       );
@@ -422,7 +429,9 @@ export async function POST(request) {
       );
     }
 
-    const handlerResponse = await handleChat(request, null, parsedBody, reqId);
+    const handlerResponse = await timeStage("handleChat", () =>
+      handleChat(request, null, parsedBody, reqId)
+    );
     const recoveryResponse = await maybeQueueQuotaSessionRecovery({
       request,
       body: parsedBody,

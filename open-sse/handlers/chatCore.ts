@@ -32,6 +32,7 @@ export {
   relocateDirectiveOnlyMessages,
 } from "./chatCore/claudeSystemRole.ts";
 import { checkIdempotencyCache } from "./chatCore/idempotency.ts";
+import { timeStage } from "../utils/stageTiming.ts";
 import {
   acquireTurnExecutionWithWait,
   createTurnInProgressResult,
@@ -378,6 +379,10 @@ type VideoBridgeLogParam = { observed: boolean; redaction: VideoBridgeLogRedacti
 // extractSystemRoleMessages extracted to chatCore/claudeSystemRole.ts (#3501); re-exported above so
 // existing importers (e.g. tests/unit/system-role-extraction.test.ts) keep resolving it from here.
 export async function handleChatCore(args: Parameters<typeof handleChatCoreInner>[0]) {
+  return timeStage("handleChatCore", () => handleChatCoreImpl(args));
+}
+
+async function handleChatCoreImpl(args: Parameters<typeof handleChatCoreInner>[0]) {
   // One immutable owner snapshot for this invocation, including delayed stream callbacks.
   let fence: CodexConnectionFence | null = null;
   try {
@@ -670,7 +675,8 @@ async function handleChatCoreInner({
   // ── Phase 9.2: Idempotency check ──
   // Resolve the idempotency key once here and reuse it at the Phase 9.2 save site below,
   // rather than re-deriving it. (#3821-review LEDGER-6)
-  const { hit: idempotencyHit, idempotencyKey } = await checkIdempotencyCache({
+  const { hit: idempotencyHit, idempotencyKey } = await timeStage("cache.idempotency", () =>
+    checkIdempotencyCache({
     clientRawRequest,
     provider,
     model,
@@ -682,7 +688,8 @@ async function handleChatCoreInner({
     startTime,
     log,
     videoTranscriptSensitive: videoBridgeObserved,
-  });
+    })
+  );
   if (idempotencyHit) {
     return idempotencyHit;
   }
@@ -1240,7 +1247,8 @@ async function handleChatCoreInner({
   const bodyForCacheWrite = body;
 
   // ── Phase 9.1: Semantic cache check (temp=0, any streaming mode) ──
-  const cacheHit = await checkSemanticCache({
+  const cacheHit = await timeStage("cache.semantic", () =>
+    checkSemanticCache({
     semanticCacheEnabled,
     body,
     clientRawRequest,
@@ -1257,7 +1265,8 @@ async function handleChatCoreInner({
     cacheDefaultMode: (apiKeyInfo as { cacheDefaultMode?: "legacy" | "bypass" } | null)
       ?.cacheDefaultMode,
     videoTranscriptSensitive: videoBridgeObserved,
-  });
+    })
+  );
   if (cacheHit) {
     return cacheHit;
   }
@@ -1369,7 +1378,9 @@ async function handleChatCoreInner({
   // This trusted in-process fence is never accepted from a client header/body.
   if (!validationExecutorFence && body && Array.isArray(allMessages) && allMessages.length > 0) {
     let estimatedTokens = estimateTokens(allMessages);
-    const compressionSettingsResult = await resolveCompressionSettings(log);
+    const compressionSettingsResult = await timeStage("compression.settings", () =>
+      resolveCompressionSettings(log)
+    );
     const compressionSettings: CompressionConfig | null = compressionSettingsResult.settings;
     // #8034 — operator-named model/endpoint exclusions bypass the whole pipeline, exactly
     // like compression being globally disabled, so the body is provably byte-identical.
@@ -1779,7 +1790,9 @@ async function handleChatCoreInner({
           onEngineStep: (s) => emitCompressionStepEvent(emit, traceId, mode, s),
         };
         const runCompression = (input: Record<string, unknown>) =>
-          applyCompressionAsync(input, mode, compressionOptions);
+          timeStage("compression.apply", () =>
+            applyCompressionAsync(input, mode, compressionOptions)
+          );
         const omniglyphSelected =
           mode === "omniglyph" ||
           (mode === "stacked" &&
@@ -2756,7 +2769,10 @@ async function handleChatCoreInner({
     allowDedup: boolean = false,
     _policy?: { allowAccountRotation?: boolean },
     rejection?: HttpAttemptRejectionSlot
-  ) => executeProviderRequestLeaf(executeProviderRequestDeps, modelToCall, allowDedup, rejection);
+  ) =>
+    timeStage("core.upstream", () =>
+      executeProviderRequestLeaf(executeProviderRequestDeps, modelToCall, allowDedup, rejection)
+    );
 
   // Snapshot + message count helpers extracted to chatCore/providerRequestRegistration.ts
   // (chatCore slice 2).

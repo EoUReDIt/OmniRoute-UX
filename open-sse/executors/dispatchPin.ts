@@ -5,6 +5,7 @@ import {
 } from "@/shared/network/outboundUrlGuard";
 import { getProviderValidationGuard } from "@/shared/network/outboundUrlGuardPolicy";
 import { getGuardedDispatcher } from "../utils/connectGuardDispatcher.ts";
+import { timeStage } from "../utils/stageTiming.ts";
 import {
   hasAmbientProxyContext,
   isDirectFetchContext,
@@ -105,9 +106,11 @@ function dispatchOnce(
     isSelfHostedChatProvider(provider) ||
     !canGuardDirectConnection(provider, url)
   ) {
-    return fetch(url, init);
+    return timeStage("upstream.fetch", () => fetch(url, init));
   }
-  return fetch(url, { ...init, dispatcher: getGuardedDispatcher(guard) } as RequestInit);
+  return timeStage("upstream.fetch", () =>
+    fetch(url, { ...init, dispatcher: getGuardedDispatcher(guard) } as RequestInit)
+  );
 }
 
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);

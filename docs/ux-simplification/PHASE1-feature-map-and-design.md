@@ -155,9 +155,9 @@ Two flags must stay default `"false"` (Hard Rule 20, guarded by `tests/unit/pii-
 
 A client calls `/v1/chat/completions` with its OmniRoute API key. The route is `src/app/api/v1/chat/completions/route.ts`. The handler is `handleChat` in `src/sse/handlers/chat.ts`. The upstream call is `handleChatCore` in `open-sse/handlers/chatCore.ts`.
 
-Ordered stages on a normal chat request, with the cost class the code implies (no timings were measured for this note):
+Ordered stages on a normal chat request. Section 4.2 is the measured timing of these stages. The list below is the order, not the cost:
 
-1. **Process init and auth.** Translator init once per process. Client key check (`extractApiKey` / `isValidApiKey` in `src/sse/services/auth.ts`): environment key, or a SQLite lookup. Optional API-key policy after that (allowlist, budget, rate limit). Rate limits are empty by default, so there is no implicit cap.
+1. **Process init and auth.** Translator init once per process. Client key check (`extractApiKey` / `isValidApiKey` in `src/sse/services/auth.ts`): environment key, or a SQLite lookup. Optional API-key policy after that (allowlist, budget, per-key rate limit). Per-key caps are empty by default. The provider request queue is a different knob: `autoEnableApiKeyProviders` defaults on, and `minTimeBetweenRequests` in `open-sse/config/constants.ts` is 350. Section 4.2 measured that floor.
 2. **Admission and injection guard.** Body size, then a synchronous prompt-injection guard. Failures return before any provider call.
 3. **Optional Bifrost sidecar.** Network, only if configured. A failure falls through to the native stack.
 4. **Guardrails.** PII redaction only when its flag is on. Task-aware routing (`getTaskRoutingConfig().enabled` in `src/sse/handlers/chat.ts`) runs only when enabled. The default in `open-sse/services/taskAwareRouter.ts` is `enabled: false`, and the classifier is regex, not a model.
@@ -168,6 +168,81 @@ Ordered stages on a normal chat request, with the cost class the code implies (n
 9. **Provider HTTP or SSE.** This is the hop the user is waiting on. Combo fallback, account fallback, and breaker updates run after a failure, and each extra attempt pays another provider hop. Fusion fans out to a panel plus a judge (`open-sse/services/fusion.ts` sets a straggler grace of 8000 ms and a panel hard timeout of 90000 ms).
 
 Caches that already skip work: idempotency, the exact semantic cache, the 10-second combos cache, auto latency stats, quota snapshots, and the Copilot auto decision cache. The vector semantic cache is a second layer, default off, because turning it on calls an embedding endpoint on cacheable requests (`open-sse/config/semanticCacheConfig.ts`, `embeddingTimeoutMs` default 3000, default embedding model `text-embedding-3-small`). Enabling it to "go faster" adds a hop on misses.
+
+### 4.2 Measured stage latency
+
+These numbers were measured on 2026-11-18 on this cloud VM (Node v22.23.4, linux x64), not on a laptop and not against a production provider mix. Reproduce with:
+
+```bash
+node --import tsx/esm scripts/perf/chat-stage-latency.ts
+```
+
+The script drives the real `POST` handler in `src/app/api/v1/chat/completions/route.ts` with `REQUIRE_API_KEY=true` and a seeded client key. The upstream is a local HTTP server that sleeps a fixed time before it writes headers. Spans come from `open-sse/utils/stageTiming.ts`, which records nothing unless `OMNIROUTE_STAGE_TIMING=1` was set before that module loaded. The benchmark sets the variable. A normal server process does not. `tests/unit/stage-timing.test.ts` checks the off path.
+
+Percentiles use the nearest-rank method. Spans are inclusive: `upstream.fetch` sits inside `core.upstream`, which sits inside `handleChatCore`, which sits inside `handleChat`. `quota.fetch` and `compression.apply` do not appear, because quota preflight's network fetcher did not run and compression stays off (the settings row defaults to disabled).
+
+**Warm success, default queue, n=24.** Mock sleep 200 ms. One hop, all HTTP 200.
+
+| What                                    | p50 (ms) | p95 (ms) |
+| --------------------------------------- | -------: | -------: |
+| End to end, including body read         |   349.66 |   351.73 |
+| Time until the mock is contacted        |   139.69 |   142.23 |
+| Mock sleep, as recorded by the mock     |     ~200 |     ~201 |
+| Upstream time to headers                |   202.89 |   206.28 |
+| Inside the executor, outside that fetch |   131.09 |   134.60 |
+| Auth                                    |     0.07 |     0.21 |
+| Admission                               |     0.50 |     0.81 |
+| Body parse                              |     0.12 |     0.21 |
+| Injection guard                         |     0.05 |     0.13 |
+| API-key policy                          |     0.34 |     0.54 |
+| Settings read                           |     0.01 |     0.05 |
+| Combo lookup                            |     0.15 |     0.24 |
+| Credential selection                    |     0.38 |     0.87 |
+| Idempotency cache                       |     0.01 |     0.03 |
+| Semantic cache check                    |     0.01 |     0.02 |
+| Compression settings read               |     0.11 |     0.17 |
+
+The stage rows are from the same scenario on the run immediately before the control (totals 349.10 / 353.30). The control run's end-to-end and pre-upstream numbers are the ones in the first five rows. They agree within about 1 ms.
+
+**Same path with the request-queue floor turned off, n=8.** Settings change for this scenario only: `autoEnableApiKeyProviders` false and `minTimeBetweenRequestsMs` 0, on a fresh provider id so the limiter was not already constructed.
+
+| What                                   | p50 (ms) | p95 (ms) |
+| -------------------------------------- | -------: | -------: |
+| End to end                             |   218.00 |   221.05 |
+| Time until the mock is contacted       |    10.20 |    12.80 |
+| Inside the executor, outside the fetch |     2.00 |     2.33 |
+| Upstream time to headers               |   202.83 |   205.29 |
+
+Turning the floor off removed about 130 ms. What remains above the 200 ms sleep is about 18 ms of gateway and loopback HTTP. Auth, combo lookup, and credential selection stay under 1 ms. The warm "routing" cost the owner can feel on a fast upstream is the default 350 ms minimum gap between API-key provider requests, not the classifier.
+
+**Cold, first request in a fresh process.** Migrations run during import. Two extra processes plus the in-process first request:
+
+| Sample                  | Import, including migrations (ms) | Request total (ms) | Until mock contacted (ms) | `compression.settings` (ms) | Upstream headers (ms) |
+| ----------------------- | --------------------------------: | -----------------: | ------------------------: | --------------------------: | --------------------: |
+| In-process, control run |                    1,667 (parent) |             769.94 |                    495.07 |                      299.54 |                228.03 |
+| Cold process A          |                          1,750.71 |             833.28 |                    550.61 |                      362.35 |                229.34 |
+| Cold process B          |                          1,769.54 |             833.48 |                    561.19 |                      372.72 |                225.02 |
+
+The first call into compression settings loads that module. Later requests pay 0.1 ms for the same span. DB seed after migrations was 47–56 ms and is not inside the request total.
+
+**Streaming.** Eight warm streams, mock sleeps 200 ms then writes one SSE chunk and `[DONE]` after another 30 ms. End-to-end p50 was 349–350 ms, the same band as JSON, and the caller saw the first body byte only when the handler returned. A long token stream was not measured. This mock cannot show time-to-first-token of a model that generates for seconds.
+
+**Combo fallback, priority, first target HTTP 503 after 50 ms, second target 200 after 200 ms. n=8.** The first request paid both hops. Its trace: 503 at 36.36 ms (headers 51.96 ms, sleep 50), then 200 at 146.02 ms (headers 201.93 ms, sleep 200). The gap between those hops was 57.7 ms. End-to-end for that request was 361.84 ms. Hop-count p50 across the eight was 1: after that first failure the later requests contacted only the healthy target. The breaker, not a model, removed the bad hop.
+
+**Rate-limit fallback.** Two connections on one provider. The lower-priority connection returns 429 with no `Retry-After` and a 20 ms mock sleep. The other returns 200 after 200 ms. The executor's same-URL retry is the stock delay of 2000 ms, up to two retries, in `open-sse/executors/base.ts`. It was not shortened for the benchmark.
+
+One traced request took **4253.47 ms**:
+
+| Hop | Started at (ms) | Headers (ms) | Mock sleep (ms) | Gap after the previous headers (ms) |
+| --- | --------------: | -----------: | --------------: | ----------------------------------: |
+| 429 |           17.10 |        21.87 |              20 |                                   — |
+| 429 |         2036.81 |        22.41 |              20 |                             1997.84 |
+| 429 |         3998.23 |        22.40 |              20 |                             1939.01 |
+| 200 |         4045.14 |       201.95 |             200 |                               24.51 |
+
+A later run's first 429 request took 2903.54 ms. The sleep is jittered around the 2000 ms setting, so the two runs are not the same number. Both are dominated by those same-key waits, not by credential selection (under 3 ms). The following requests in the same series, four of them, landed near 350 ms with a single hop: once the connection had failed, later requests skipped it. p50 of the five-request series is therefore ~350 ms and must not be read as "429s cost 350 ms". The expensive sample is the first one.
+
+**Keyless live provider.** `GET https://hermes.ai.unturf.com/v1/models` (the `uncloseai` base in `open-sse/config/providers/registry/uncloseai/index.ts`) returned **401**. No live chat was sent. A real upstream's time-to-first-token was not measured.
 
 ### 4.1 Small models that already exist, and what they cost
 
@@ -287,15 +362,24 @@ Two jobs, both optional:
 1. Help the operator finish setup (provider, key, coding tool, MCP) by explaining the next existing step.
 2. Reduce time spent on requests that go through the user's API keys.
 
-Job 2 is the one that is easy to get wrong. A model on the chat hot path **adds** latency. The routing work before the provider is already in-process. The keyword classifier is documented at under 1 ms. A sub-1B instruct model on CPU that emits a short JSON label takes hundreds of milliseconds to a few seconds on typical laptop CPUs. Third-party CPU figures published in 2026 (not measured on an OmniRoute box, and not a promise) put Qwen3-0.6B around the low tens of tokens per second on a weak i5, and smaller models such as LFM2.5-350M nearer 100 tokens per second on a 6-thread llama.cpp run. A 30-token label at those rates is a large fraction of a second before the provider is even contacted. On a request whose first target succeeds, that wait is pure loss. The provider hop dominates a successful request, and a local model does not make OpenAI, Anthropic, or any other upstream faster.
+Job 2 has to aim at the times in section 4.2, not at the keyword classifier. On a warm success the classifier's neighbors were all under 1 ms. The times that were actually large:
 
-So the design that can actually help is:
+| Bottleneck                    | What was measured                                                                                                                                                                                                                                                          | What a local model can do about it                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Upstream headers              | 200 ms of that was the mock sleep. Real providers will be slower. The 401 from UncloseAI means this note has no live time-to-first-token.                                                                                                                                  | Nothing. The model does not make the chosen provider faster. Putting it in front of every request adds its own wait to a path whose routing work, with the queue floor off, was about 10 ms before the socket.                                                                                                                                                                                                                                                                                 |
+| Default 350 ms minimum gap    | Warm end-to-end p50 **349.66 ms** with the floor on, **218.00 ms** with it off (n=8). The difference is ~130 ms inside the executor before the mock is contacted.                                                                                                          | Nothing useful. This is `minTimeBetweenRequests` plus `autoEnableApiKeyProviders`, already a setting. A model must not be added on top of it. Simple view should show the setting, because a novice with a fast provider will feel the pad and blame "routing". Do not change the default.                                                                                                                                                                                                     |
+| First compression-module load | 300–373 ms on the first request of a process, 0.1 ms after that.                                                                                                                                                                                                           | Nothing. Prewarming that import at startup would remove it. That is not a model.                                                                                                                                                                                                                                                                                                                                                                                                               |
+| First 429, same key           | One request **4253.47 ms**, of which two gaps were **1997.84 ms** and **1939.01 ms**, then **24.51 ms** to the healthy key. A second run's first 429 request was **2903.54 ms**. The next requests in the series were ~350 ms because the bad connection was then skipped. | This is the only measured bucket a hint can shrink, and only on a key the hint has already seen fail. The cooldown that already ran is why requests 2–5 were cheap. An inline model would bill every successful request to save a sleep the retry loop chooses before it rotates. The sleep is the executor's 2000 ms same-URL retry in `open-sse/executors/base.ts`, up to two times. Skipping the retry is a policy change. A model is not required to stop sleeping for two seconds. |
+| First 503 in a combo          | One request paid a 50 ms failed hop plus a **57.7 ms** gap, then the 200 ms success. Later requests in that series did not call the failed target.                                                                                                                         | About 100 ms, once, and the breaker already collected it. Smaller than the 429 sleeps.                                                                                                                                                                                                                                                                                                                                                                                                         |
 
-- **Setup help is off the request path.** It runs when the operator opens the guide, never inside `handleChat` or `handleChatCore`.
-- **Routing help is a cache written later.** After a request finishes, or on a timer, the model may label what happened and store a hint. The next request does a memory lookup. If the hint says the first target is cooled down or recently failed for this kind of call, the existing combo order can skip it. Skipping a doomed provider hop saves a full upstream timeout. Paying the model inline would cost more than today's scorer on the happy path.
+So the design that matches the measurements:
+
+- **Do not call the model from `handleChat` or `handleChatCore`.** With the queue floor off, everything before the mock was about 10 ms. A sub-1B generate is hundreds of milliseconds. That would be a new bottleneck, larger than auth, combo lookup, and credential selection combined.
+- **Setup help stays off the request path.** It runs when the operator opens the guide.
+- **The routing hint is a lookup, written after failures, off by default.** It may record "this connection just returned 429". The next request reads the note in memory and does not enter the 2-second same-key retry. While the flag is off, that read does not happen and the retry loop is unchanged. Expected gain versus today's cooldown: about **0 ms** on the steady state (the series already dropped to ~350 ms). Expected gain on the _first_ 429 of a key the hint has already marked: the two sleeps, on the order of **2–4 seconds** for that one request, which is the gap between the 4253 ms trace and the later ~350 ms requests. If the hint has not seen the key fail yet, the gain is zero.
 - **While the flags are off, nothing in this section runs.** No process, no localhost call, no score change, no prompt sent anywhere.
 
-Do not replace `intentClassifier.ts` with a neural model. Do not turn on compression ultra SLM, vector semantic cache, `jev`, or System One as a side effect. Those already have their own switches and their own latency.
+Do not replace `intentClassifier.ts` with a neural model. Do not turn on compression ultra SLM, vector semantic cache, `jev`, or System One as a side effect. Do not change the 350 ms request gap or the 2000 ms retry in the model milestone. Those are behavior changes with their own decision, and the measurements say they are the actual knobs.
 
 ### 7.2 Candidates under 1B parameters
 
@@ -424,19 +508,27 @@ Each milestone is a separate PR on this fork, base `release/v3.8.55`, and each o
 
 | Milestone               | Ships                                                                                                                                                                    | Exit test                                                                                                                                                                                                                              |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1. This note**        | Design only.                                                                                                                                                             | Docs gates for this file. No `src/`, `open-sse/`, `electron/`, or `bin/` diff.                                                                                                                                                         |
+| **1. This note**        | Design, the benchmark in `scripts/perf/chat-stage-latency.ts`, and the off-by-default stage timer.                                                                       | Docs gates. `tests/unit/stage-timing.test.ts`. Benchmark reproduces section 4.2. With the env unset, spans are empty.                                                                                                                  |
 | **2. Switch**           | `dashboardUiMode` on the settings row, header control, cookie mirror. Both shells render today's pages. Simple shell can be an empty short nav plus the command palette. | Round-trip test. Sidebar preset tests unchanged. Direct URLs still render. Chat unit tests unchanged.                                                                                                                                  |
 | **3. Simple checklist** | Home checklist and the short nav from section 6.3, mounting existing pages. Welcome-step radio.                                                                          | New Playwright spec for the switch. Existing sidebar and API-key specs still pass on original.                                                                                                                                         |
 | **4. Static MCP coach** | The checklist in section 7.4 with the model hard-off. Copy uses the strings and URLs the MCP and CLI Code pages already show.                                            | MCP enable e2e with no localhost model traffic.                                                                                                                                                                                        |
 | **5. Opt-in guide**     | `localGuideEnabled` default false. Narration via an existing `ollama-local` or `llama-cpp` connection. No write tools.                                                   | Fetch mock proves no call when the flag is off. Prompt fixture test proves secrets are not interpolated.                                                                                                                               |
 | **6. Hint cache**       | `routingHintCacheEnabled` default false. Async writer. Scorer consults the map only when the flag is on.                                                                 | `scorePool` golden matches when the flag is off. A fixture with a cooled-down target shows the skip only when the flag is on. A before/after log on a failing target is the latency evidence; do not claim a speedup without that log. |
 
-Milestone 6 is the only one allowed to touch combo ordering, and only behind the flag. If the measurement does not show fewer wasted provider hops, leave the flag off and do not widen the hook.
+Milestone 6 is the only one allowed to touch combo ordering, and only behind the flag. Section 4.2 already shows the steady-state win of skipping a bad target is what the breaker does today. Ship the hint only if a replay of the 429 trace shows the first poisoned request no longer waits out the 2000 ms same-key retry, and the success-path totals stay in the no-hint band.
+
+### How long the next two phases are
+
+Engineering time for one person who already has this tree, not calendar time with review queues.
+
+**Phase 2, Simple view and the switch** (milestones 2 and 3). One settings field, a header control, a short nav that mounts the existing pages, the welcome-step radio, English strings, a unit round-trip, and one Playwright spec on top of the sidebar specs that already exist. The pages are not rewritten. About **4 engineering days**. Three if the shell is only a filter. Five if the checklist has to be checked in the browser on web and Electron.
+
+**Phase 3, the local model** (milestones 5 and 6). Wiring narration to an existing `ollama-local` or `llama-cpp` connection, the prompt allow-list, the confirm-only MCP checklist, and an async hint that is off by default. About **8 to 12 engineering days**. That does not include changing the 350 ms queue floor or the 2 second 429 retry. Those are smaller diffs and a separate decision, because they change default behavior. The model work does not remove the upstream's own time, and on the warm success path the measured routing work left after the queue floor is about 10 ms.
 
 ## 11. Open questions for the owner
 
 1. **Fresh-install radio.** This note preselects Simple on the welcome step, and writes it only when the operator presses Continue. Abandoning the wizard leaves original. Should Continue-with-the-default instead stay on Full view, so Simple is always an explicit opt-in even for new installs?
-2. **Latency target.** If the goal is a faster _successful_ first hop, a local model cannot do that, and milestones 5–6 should stay setup-only. If the goal is fewer slow failures (429s and dead connections), the hint cache is the design that matches. Which one is the bar?
+2. **Latency target, now that section 4.2 is measured.** The warm success path is the 350 ms queue floor plus the upstream. The painful failure path is the first 429's same-key sleeps (one trace 4253 ms, another 2903 ms), and the following requests were already cheap. Do you want a behavior change to that retry (no model), the off-by-default hint that only helps a key already seen to fail, or both? The model still does not speed up a successful upstream.
 3. **Weights and license.** Is Apache-2.0 Qwen3-0.6B acceptable as the documented default pull, with LFM2.5-350M deferred until someone reads the LFM license? Should the app refuse to vendor weights permanently?
 4. **Who starts the runtime.** Confirm the guide must never spawn Ollama or llama-server, and must never download weights, in the first model milestone. A later click-to-pull against the already configured local URL is a separate decision.
 5. **Command palette in Simple view.** This note keeps it searching every sidebar entry, so nothing is unreachable. Should that search be limited to the short nav, with Full view as the only door to the rest? That is safer for novices and worse for "every feature stays reachable without a mode change".

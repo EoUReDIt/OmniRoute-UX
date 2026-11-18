@@ -30,6 +30,7 @@ import {
   getCachedSettings,
   getCachedProviderConnectionById,
 } from "@/lib/db/readCache";
+import { timeStage } from "@omniroute/open-sse/utils/stageTiming.ts";
 import {
   getProviderConnections,
   updateProviderConnection,
@@ -2300,7 +2301,9 @@ export async function getProviderCredentialsWithQuotaPreflight(
     options.excludeConnectionIds
   );
 
-  const resilience = resolveResilienceSettings(await getCachedSettings());
+  const resilience = resolveResilienceSettings(
+    await timeStage("db.settings", () => getCachedSettings())
+  );
   const { warnThresholdPercent } = resilience.quotaPreflight;
   let pendingCredentialSelection: Awaited<ReturnType<typeof getProviderCredentials>> | undefined;
 
