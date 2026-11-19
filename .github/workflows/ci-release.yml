@@ -3,21 +3,21 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version to release (e.g., v3.8.56)'
+        description: "Version to release (e.g., v3.8.56)"
         required: true
         type: string
       dry_run:
-        description: 'Dry run (no publish)'
+        description: "Dry run (no publish)"
         required: false
         default: true
         type: boolean
 
 env:
-  NODE_VERSION: '20'
+  NODE_VERSION: "20"
 
 permissions:
   contents: write
@@ -43,7 +43,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -107,8 +107,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          registry-url: 'https://registry.npmjs.org'
+          cache: "npm"
+          registry-url: "https://registry.npmjs.org"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -126,7 +126,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: npm-package-${{ needs.pre-release.outputs.version }}
-          path: '*.tgz'
+          path: "*.tgz"
           retention-days: 7
 
   # 3. Docker Build & Push
@@ -158,7 +158,7 @@ jobs:
           tags: |
             type=ref,event=tag
             type=raw,value=${{ needs.pre-release.outputs.version }}
-            type=raw,value=latest,enable=${{ github.repository == github.event.repository.name && github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable={{ github.repository == github.event.repository.name && github.ref == 'refs/heads/main' }}
       
       - name: Build and push
         uses: docker/build-push-action@v5
