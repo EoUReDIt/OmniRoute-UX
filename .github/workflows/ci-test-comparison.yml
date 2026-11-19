@@ -14,7 +14,7 @@ on:
         type: boolean
 
 env:
-  NODE_VERSION: "20"
+  NODE_VERSION: "27"
   UPSTREAM_REPO: "diegosouzapw/OmniRoute"
   UPSTREAM_BRANCH: "main"
 
