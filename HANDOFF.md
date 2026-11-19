@@ -1,21 +1,21 @@
-# HANDOFF.md — Phase 5: Local Model / Routing Hint Cache
+# HANDOFF.md — Phase 5: Local Model / Routing Hint Cache — ✅ COMPLETE & MERGED
 
-**Branch:** `ux/simple-mode-phase1-local-model` → `release/v3.8.55`
+**Branch:** `ux/simple-mode-phase1-local-model` → `release/v3.8.55` (MERGED)
 **Base Commit:** `ea3a039366178fa60cf1823baa31c206042dfd17`
-**Status:** 🔴 RED PHASE — Writing failing tests
+**Status:** ✅ COMPLETE & MERGED — Phase 5 complete
 **Updated:** 2026-11-19
 
 ---
 
-## 🎯 Phase 5 Goal
+## 🎯 Phase 5 Goal — ✅ COMPLETE
 
-Implement **Local Model / Routing Hint Cache** per `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Section 7):
+Implemented **Local Model / Routing Hint Cache** per `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Section 7):
 
-1. **Routing Hint Cache** — SQLite cache for provider failure hints
-2. **Local Guide Model** — Optional local model (<1B params) for setup assistance
-3. **Feature Flags** — `localGuideEnabled` (OFF by default), `localGuideModel` (validated allowlist)
-4. **Guide Prompt Construction** — Server-side, boolean flags ONLY (no secrets)
-5. **Hint Cache Schema** — `connectionId`, `hint`, `expiresAt`, `breakerGeneration`
+1. ✅ **Routing Hint Cache** — SQLite cache with `breakerGeneration` invalidation, TTL 120s
+2. ✅ **Local Guide Model** — Optional local model (Qwen3-0.6B), OFF by default, sandboxed
+3. ✅ **Feature Flags** — `localGuideEnabled` (OFF by default), `localGuideModel` (validated allowlist)
+4. ✅ **Guide Prompt Construction** — Server-side, boolean flags ONLY (no secrets)
+5. ✅ **Hint Cache Schema** — `connectionId`, `hint`, `expiresAt`, `breakerGeneration`
 
 ---
 
@@ -37,29 +37,29 @@ Implement **Local Model / Routing Hint Cache** per `docs/ux-simplification/PHASE
 
 ---
 
-## 🔴 RED Phase — Failing Tests to Write
+## 🔴 RED Phase — Failing Tests — ✅ ALL COMPLETE & SECURITY-REVIEWED
 
 | Test | Path | Status |
 |------|------|--------|
-| Hint Cache unit test | `src/lib/cache/__tests__/hintCache.test.ts` | ⏳ Pending |
-| Hint Cache integration test | `tests/e2e/hintCache.spec.ts` | ⏳ Pending |
-| Guide Prompt unit test | `tests/unit/guide-prompt.test.ts` | ⏳ Pending |
-| Local Model unit test | `src/lib/localModel/__tests__/localModel.test.ts` | ⏳ Pending |
-| Feature Flag audit test | `src/lib/audit/__tests__/featureFlagAudit.test.ts` | ⏳ Pending |
-| Routing Hint E2E test | `tests/e2e/routingHint.spec.ts` | ⏳ Pending |
+| Hint Cache unit test | `src/lib/cache/__tests__/hintCache.test.ts` | ✅ Complete &
+| Hint Cache integration test | `tests/e2e/hintCache.spec.ts` | ✅ Complete &
+| Guide Prompt unit test | `tests/unit/guide-prompt.test.ts` | ✅ Complete &
+| Local Model unit test | `src/lib/localModel/__tests__/localModel.test.ts` | ✅ Complete &
+| Feature Flag audit test | `src/lib/audit/__tests__/featureFlagAudit.test.ts` | ✅ Complete &
+| Routing Hint E2E test | `tests/e2e/routingHint.spec.ts` | ✅ Complete &
 
 ---
 
-## ✅ GREEN Phase Targets (for @stackier)
+## ✅ GREEN Phase Targets — ✅ ALL IMPLEMENTED & PUSHED
 
-| Component | Implementation |
-|-----------|----------------|
-| `hintCache.ts` | SQLite cache with `breakerGeneration` invalidation |
-| `guidePrompt.ts` | Boolean flags ONLY prompt builder |
-| `localModel.ts` | Local model loader (sandboxed, OFF by default) |
-| `featureFlags.ts` | `localGuideEnabled`, `localGuideModel` with audit |
-| `tests/unit/guide-prompt.test.ts` | Boolean flags ONLY tests |
-| `tests/e2e/routingHint.spec.ts` | E2E routing hint flow |
+| Component | Implementation | Status |
+|-----------|----------------|--------|
+| `hintCache.ts` | SQLite cache with `breakerGeneration` invalidation | ✅ Complete (Phase 1) |
+| `guidePrompt.ts` | Boolean flags ONLY prompt builder | ✅ Complete (Phase 1) |
+| `localModel.ts` | Local model loader (sandboxed, OFF by default) | ✅ Complete &
+| `featureFlagAudit.ts` | `localGuideEnabled`, `localGuideModel` with audit | ✅ Complete &
+| `tests/unit/guide-prompt.test.ts` | Boolean flags ONLY tests | ✅ Complete &
+| `tests/e2e/routingHint.spec.ts` | E2E routing hint flow | ✅ Complete &
 
 ---
 
@@ -86,27 +86,28 @@ Implement **Local Model / Routing Hint Cache** per `docs/ux-simplification/PHASE
 
 ## 📁 Current Branch State
 
-- **Branch:** `ux/simple-mode-phase1-local-model`
+- **Branch:** `ux/simple-mode-phase1-local-model` — **MERGED & DELETED**
 - **Base:** `release/v3.8.55` (SHA `ea3a039366178fa60cf1823baa31c206042dfd17`)
-- **Commits:** 1 (this HANDOFF.md)
+- **Commits:** 9 (HANDOFF.md + 6 test files + 2 implementation files)
 
 ---
 
-## 🔄 Next Actions
+## 🔄 Next Actions — ✅ PHASE 5 COMPLETE
 
-1. **@stackier** writes all 6 failing tests (RED phase)
-2. **@protecor-kiar** reviews test assertions for security compliance
-3. **@stackier** implements components to pass tests (GREEN phase)
-4. **@protecor-kiar** reviews implementations
-5. **@frankie** merges to `release/v3.8.55`
+1. ✅ **@stackier** wrote all 6 failing tests (RED phase)
+2. ✅ **@protecor-kiar** reviewed test assertions for security compliance
+3. ✅ **@stackier** implemented components to pass tests (GREEN phase)
+4. ✅ **@protecor-kiar** reviewed implementations — **ALL SECURITY GATES VERIFIED**
+5. ✅ **@frankie** merged to `release/v3.8.55` (PR #9)
 6. **Phase 6** begins: `ux/simple-mode-phase1-integration-tests`
 
 ---
 
 ## 📝 Notes
 
-- Phase 1-4 complete and merged
-- Phase 5 focuses on **local model + routing hint cache** (Section 7 of design doc)
-- **Critical**: Guide prompt MUST use boolean flags ONLY — no decrypted secrets
-- Local model: Qwen3-0.6B approved, OFF by default, sandboxed
-- Routing hint cache: SQLite, `breakerGeneration` invalidation, async worker
+- Phase 1-5 complete and merged to `release/v3.8.55`
+- Phase 5 implemented **local model + routing hint cache** (Section 7 of design doc)
+- **Critical**: Guide prompt uses boolean flags ONLY — no decrypted secrets ✅
+- Local model: Qwen3-0.6B approved, OFF by default, sandboxed ✅
+- Routing hint cache: SQLite, `breakerGeneration` invalidation, async worker ✅
+- **All security gates verified by @protecor-kiar** ✅
