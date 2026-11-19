@@ -1,13 +1,20 @@
 import React from 'react'
+import { useBannerVisibility } from '@/hooks/useBannerVisibility'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 
 interface AdvancedBannerProps {
-  /** Optional children or content */
+  /** Optional children or custom content */
   children?: React.ReactNode
 }
 
 export const AdvancedBanner: React.FC<AdvancedBannerProps> = ({ children }) => {
-  const [mode, setMode] = useLocalStorage<'simple' | 'full'>('simpleMode', 'full')
+  const { isVisible, mode, canToggle } = useBannerVisibility()
+  const [simpleMode, setSimpleMode] = useLocalStorage<'simple' | 'full'>('simpleMode', 'full')
+
+  // Hide banner in simple mode
+  if (simpleMode === 'simple') {
+    return null
+  }
 
   const handleBackToHome = () => {
     window.location.href = '/'
@@ -18,19 +25,51 @@ export const AdvancedBanner: React.FC<AdvancedBannerProps> = ({ children }) => {
     window.location.href = '/'
   }
 
-  // Hide banner in simple mode
-  if (mode === 'simple') {
+  // If banner is not visible, render nothing
+  if (!isVisible) {
     return null
   }
 
   return (
-    <div className="advanced-banner" role="alert" aria-label="This is an advanced screen">
-      <p>{children || 'This is an advanced screen'}</p>
-      <div className="banner-actions">
-        <button onClick={handleBackToHome} className="btn-back-to-home" data-testid="back-to-home-btn">
+    <div
+      role="alert"
+      aria-label="This is an advanced screen"
+      style={{
+        padding: '16px',
+        backgroundColor: '#fff3cd',
+        border: '1px solid #ffeeba',
+        borderRadius: '4px',
+        margin: '16px',
+      }}
+    >
+      <p style={{ margin: '0 0 12px 0', color: '#856404' }}>
+        {children || 'This is an advanced screen'}
+      </p>
+      <div style={{ display: 'flex', gap: '8px' }}>
+        <button
+          onClick={handleBackToHome}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
           Back to Home
         </button>
-        <button onClick={handleOpenInFullView} className="btn-open-full-view" data-testid="open-full-view-btn">
+        <button
+          onClick={handleOpenInFullView}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#28a745',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
           Open in Full View
         </button>
       </div>
