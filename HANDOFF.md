@@ -1,40 +1,38 @@
-# HANDOFF.md — Phase 2: UX Simple Mode Frontend
+# HANDOFF.md — Phase 3: Sidebar Section Visibility Gating
 
-**Branch:** `ux/simple-mode-phase2-frontend` → `release/v3.8.55`
-**Base Commit:** `790af231bc7fbde1da6a2657c87240cdc16f485d`
+**Branch:** `ux/simple-mode-phase3-sidebar` → `release/v3.8.55`
+**Base Commit:** `043e830aa55c81ac72c8ef4d9ed569abfc4d1fcf`
 **Status:** 🔴 RED PHASE — Writing failing tests
 **Updated:** 2026-11-19
 
 ---
 
-## 🎯 Phase 2 Goal
+## 🎯 Phase 3 Goal
 
-Implement Frontend for UX Simple Mode per `docs/ux-simplification/PHASE1-feature-map-and-design.md`:
+Complete Sidebar Section Visibility Gating per `docs/ux-simplification/PHASE1-feature-map-and-design.md`:
 
-1. **Header Toggle** — Simple/Full mode switch in header
-2. **localStorage Persistence** — Mode persists across reloads, cross-tab sync
-3. **Advanced Screen Banner** — "This is an advanced screen" with "Back to Home" / "Open in Full View"
-4. **Sidebar Section Visibility Gating** — Hide advanced sections in Simple mode
-5. **Guide Prompt Construction** — Server-built from allowlisted DDT (boolean flags only)
-6. **Vitest + Playwright Tests** — Unit, E2E, accessibility, visual regression
+1. **Sidebar Sections Hidden in Simple Mode** — Only "Essentials" sections visible
+2. **Sidebar Sections Shown in Full Mode** — All 10 sections visible (Home, OmniProxy, Analytics, Costs, Monitoring, Dev Tools, Agentic Features, Other Features, Configuration, Help)
+3. **Protected Items Always Visible** — `proxy` and `settings-sidebar` cannot be hidden (from `PROTECTED_SIDEBAR_ITEM_IDS`)
+4. **PATCH `/api/settings` Mode Toggle** — `dashboardUiMode` toggles between `simple` and `original` (Full)
+5. **Round-trip PATCH** — `simple` ↔ `original` leaves `hiddenSidebarItems` and `sidebarActivePreset` untouched
 
 ---
 
 ## 🛡️ Security Gates (from @protecor-kiar)
 
 ### 🔴 CRITICAL — Secret Redaction
-- Guide prompt = boolean flags ONLY (`hasOidcClientSecret: true`, `hasEnterGraphClientSecret: true`, `mcpEnabled: true`, `transport: "streamable"`, `hasClientKey: true`, `lastQuestion: "..."`) — **never decrypted secrets**
-- Server-side proxy if guide needs secrets (client never sees secrets)
+- [ ] Guide prompt = boolean flags ONLY (never decrypted secrets)
+- [ ] Server-side proxy if guide needs secrets
 
 ### 🟠 HIGH — Feature Flag Security
-- `localGuideEnabled` OFF by default, explicit opt-in, audit-logged
-- `localGuideModel` validated against allowlist (no arbitrary model loading)
-- Local model sandboxed (no network, no FS beyond weights, resource limits)
+- [ ] `localGuideEnabled` OFF by default, explicit opt-in, audit-logged
+- [ ] `localGuideModel` validated against allowlist
 
 ### 🟡 MEDIUM — Auth & Error Hygiene
-- `requireAuth` on all new routes
-- `sanitizeErrorMessage` strips stack traces, internal paths, config values, connection strings
-- Rate limit `/api/settings` and guide endpoint aggressively
+- [ ] `requireAuth` on new routes
+- [ ] `sanitizeErrorMessage` on all new endpoints
+- [ ] Rate limiting on guide endpoint
 
 ---
 
@@ -42,15 +40,10 @@ Implement Frontend for UX Simple Mode per `docs/ux-simplification/PHASE1-feature
 
 | Test | Path | Status |
 |------|------|--------|
-| Header Toggle unit test | `src/components/__tests__/ModeToggle.test.tsx` | ⏳ Pending |
-| localStorage persistence unit test | `src/components/__tests__/localStorage-persistence.test.tsx` | ⏳ Pending |
-| Advanced Banner unit test | `src/components/__tests__/AdvancedBanner.test.tsx` | ⏳ Pending |
-| E2E Mode Toggle flow | `tests/e2e/mode-toggle.spec.ts` | ⏳ Pending |
-| E2E Advanced Banner flow | `tests/e2e/advanced-banner.spec.ts` | ⏳ Pending |
-| E2E localStorage persistence | `tests/e2e/localStorage-persistence.spec.ts` | ⏳ Pending |
-| E2E Accessibility (a11y) | `tests/e2e/a11y.spec.ts` | ⏳ Pending |
-| E2E Visual regression | `tests/e2e/visual.spec.ts` | ⏳ Pending |
-| Guide Prompt unit test | `tests/unit/guide-prompt.test.ts` | ⏳ Pending |
+| Sidebar visibility unit test | `src/lib/__tests__/sidebar-visibility.test.ts` | ⏳ Pending |
+| Sidebar PATCH round-trip test | `src/app/api/settings/__tests__/mode-toggle.test.ts` | ⏳ Pending |
+| E2E sidebar visibility flow | `tests/e2e/sidebar-visibility.spec.ts` | ⏳ Pending |
+| E2E mode toggle round-trip | `tests/e2e/mode-roundtrip.spec.ts` | ⏳ Pending |
 
 ---
 
@@ -58,12 +51,11 @@ Implement Frontend for UX Simple Mode per `docs/ux-simplification/PHASE1-feature
 
 | Component | Implementation |
 |-----------|----------------|
-| `ModeToggle.tsx` | Header toggle with localStorage, cross-tab sync |
-| `AdvancedBanner.tsx` | Banner with Back to Home / Open in Full View |
-| `useLocalStorage.ts` | Hydration-safe localStorage hook |
-| `sidebarVisibility.ts` | Section gating for Simple mode |
-| `guide-prompt.ts` | Server-side DDT allowlist builder |
-| `tests/e2e/*.spec.ts` | Playwright E2E, a11y, visual tests |
+| `sidebarVisibility.ts` | Enhanced: `useSidebarSections()` returns filtered sections based on mode |
+| `Sidebar.tsx` | Integration: consumes `useSidebarSections()` |
+| `/api/settings` PATCH | Handles `dashboardUiMode` toggle, preserves `hiddenSidebarItems` and `sidebarActivePreset` |
+| `mode-toggle.test.ts` | Unit test for PATCH round-trip |
+| `sidebar-visibility.spec.ts` | E2E test for sidebar filtering |
 
 ---
 
@@ -72,8 +64,8 @@ Implement Frontend for UX Simple Mode per `docs/ux-simplification/PHASE1-feature
 | Agent | Role |
 |-------|------|
 | **@frankie** | Repo manager — GitHub gateway, PR workflow, HANDOFF.md |
-| **@stackier** | Frontend implementation — React/Next.js components, hooks, tests |
-| **@protecor-kiar** | Security review — Secret redaction, feature flags, auth, rate limits |
+| **@stackier** | Frontend implementation — Sidebar gating, PATCH handler, tests |
+| **@protecor-kiar** | Security review — No auth bypass, no secret leakage, feature flags default OFF |
 | **@jonin-le** | Skill governance — `frontend-testing-patterns`, `popular-web-designs` |
 
 ---
@@ -90,23 +82,27 @@ Implement Frontend for UX Simple Mode per `docs/ux-simplification/PHASE1-feature
 
 ## 📁 Current Branch State
 
-- **Branch:** `release/v3.8.55` (Phase 2 merged)
-- **Latest Commit:** Phase 2 merge commit
-- **Commits:** Phase 1 + Phase 2 complete
+- **Branch:** `ux/simple-mode-phase3-sidebar`
+- **Base:** `release/v3.8.55` (SHA `043e830aa55c81ac72c8ef4d9ed569abfc4d1fcf`)
+- **Commits:** 1 (this HANDOFF.md)
 
 ---
 
 ## 🔄 Next Actions
 
-1. **Phase 3 begins** → create `ux/simple-mode-phase1-sidebar` branch + PR for Sidebar section visibility gating
-2. **Phase 4** → `ux/simple-mode-phase1-banners` for Advanced-screen banners
-3. **Phase 5** → `ux/simple-mode-phase1-tests` for Vitest + Playwright integration tests
+1. **@stackier** writes 4 failing tests (RED phase)
+2. **@protecor-kiar** reviews test assertions for security compliance
+3. **@stackier** implements components to pass tests (GREEN phase)
+4. **@protecor-kiar** reviews implementations
+5. **@frankie** merges to `release/v3.8.55`
+6. **Phase 4** begins: `ux/simple-mode-phase4-banners`
 
 ---
 
 ## 📝 Notes
 
 - Phase 1 backend complete and merged (PR #3)
+- Phase 2 frontend complete and merged (PR #4)
 - Using `frontend-testing-patterns` skill for Playwright, localStorage, a11y, visual regression patterns
-- Using `popular-web-designs` for Linear/Vercel-style Header toggle and Banner component patterns
-- Design doc: `docs/ux-simplification/PHASE1-feature-map-and-design.md`
+- Using `popular-web-designs` for Linear/Vercel-style component patterns
+- Design doc: `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Sections 2.3, 6.3, 6.4, 9)
