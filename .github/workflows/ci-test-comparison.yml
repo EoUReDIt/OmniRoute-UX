@@ -1,0 +1,361 @@
+name: Test & Upstream Comparison
+
+on:
+  push:
+    branches: [main, release/**, ux/**]
+  pull_request:
+    branches: [main, release/**]
+  workflow_dispatch:
+    inputs:
+      compare_upstream:
+        description: 'Compare against upstream'
+        required: false
+        default: 'true'
+        type: boolean
+
+env:
+  NODE_VERSION: '20'
+  UPSTREAM_REPO: 'diegosouzapw/OmniRoute'
+  UPSTREAM_BRANCH: 'main'
+
+jobs:
+  # 1. Install & Build
+  install:
+    name: Install & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      build_sha: ${{ steps.build.outputs.build_sha }}
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Build
+        id: build
+        run: |
+          npm run build
+          echo "build_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-${{ github.sha }}
+          path: |
+            .next/
+            dist/
+          retention-days: 3
+
+  # 2. Unit Tests (Vitest)
+  unit-tests:
+    name: Unit Tests
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Run unit tests
+        run: npm run test:unit -- --reporter=verbose
+      
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-unit-${{ github.sha }}
+          path: coverage/
+          retention-days: 7
+
+  # 3. E2E Tests (Playwright)
+  e2e-tests:
+    name: E2E Tests
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+      
+      - name: Run E2E tests
+        run: npm run test:e2e -- --reporter=html
+      
+      - name: Upload E2E report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-report-${{ github.sha }}
+          path: test-results/
+          retention-days: 7
+
+  # 4. Upstream Comparison (THE KEY JOB)
+  upstream-comparison:
+    name: Upstream Comparison (What Changed vs What Broke)
+    needs: [install, unit-tests, e2e-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    if: github.event.inputs.compare_upstream == 'true' || github.event_name != 'workflow_dispatch'
+    steps:
+      - name: Checkout fork with full history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Add upstream remote
+        run: |
+          git remote add upstream https://github.com/${{ env.UPSTREAM_REPO }}.git
+          git fetch upstream ${{ env.UPSTREAM_BRANCH }} --depth=100
+      
+      - name: Get upstream base commit
+        id: upstream
+        run: |
+          UPSTREAM_SHA=$(git rev-parse upstream/${{ env.UPSTREAM_BRANCH }})
+          echo "upstream_sha=$UPSTREAM_SHA" >> $GITHUB_OUTPUT
+          echo "Upstream HEAD: $UPSTREAM_SHA"
+      
+      - name: Compare commits (what we changed)
+        id: diff
+        run: |
+          # Our commits since upstream
+          git log --oneline --graph upstream/${{ env.UPSTREAM_BRANCH }}..HEAD > commit_diff.txt || true
+          COMMIT_COUNT=$(git rev-list --count upstream/${{ env.UPSTREAM_BRANCH }}..HEAD)
+          echo "commit_count=$COMMIT_COUNT" >> $GITHUB_OUTPUT
+          cat commit_diff.txt
+      
+      - name: Compare test results (what broke)
+        id: test_comparison
+        run: |
+          # Run tests on upstream commit (shallow)
+          git stash --include-untracked
+          git checkout ${{ steps.upstream.outputs.upstream_sha }} --detach
+          
+          # Install & test upstream
+          npm ci --prefer-offline --no-audit 2>&1 | tail -20
+          UPSTREAM_TEST_EXIT=0
+          npm run test:unit 2>&1 | tail -30 || UPSTREAM_TEST_EXIT=1
+          
+          # Back to our branch
+          git checkout -
+          git stash pop
+          
+          # Run our tests
+          OUR_TEST_EXIT=0
+          npm run test:unit 2>&1 | tail -30 || OUR_TEST_EXIT=1
+          
+          # Compare
+          cat > test_comparison.json << EOF
+          {
+            "upstream_tests_passed": $([[ $UPSTREAM_TEST_EXIT -eq 0 ]] && echo true || echo false),
+            "our_tests_passed": $([[ $OUR_TEST_EXIT -eq 0 ]] && echo true || echo false),
+            "regression": $([[ $UPSTREAM_TEST_EXIT -eq 0 && $OUR_TEST_EXIT -ne 0 ]] && echo true || echo false),
+            "new_failure": $([[ $UPSTREAM_TEST_EXIT -ne 0 && $OUR_TEST_EXIT -ne 0 ]] && echo true || echo false),
+            "fixed": $([[ $UPSTREAM_TEST_EXIT -ne 0 && $OUR_TEST_EXIT -eq 0 ]] && echo true || echo false)
+          }
+          EOF
+          cat test_comparison.json
+          echo "comparison=$(cat test_comparison.json | jq -c .)" >> $GITHUB_OUTPUT
+      
+      - name: File diff summary (what files changed)
+        id: file_diff
+        run: |
+          git diff --name-only upstream/${{ env.UPSTREAM_BRANCH }}..HEAD > changed_files.txt
+          FILE_COUNT=$(wc -l < changed_files.txt)
+          echo "file_count=$FILE_COUNT" >> $GITHUB_OUTPUT
+          
+          # Categorize changes
+          echo "## Changed Files ($FILE_COUNT)" > file_diff_summary.md
+          echo "" >> file_diff_summary.md
+          while IFS= read -r file; do
+            if [[ $file == src/app/api/* ]]; then
+              echo "- 🔴 **API**: \`$file\`" >> file_diff_summary.md
+            elif [[ $file == src/components/* ]]; then
+              echo "- 🟢 **UI Component**: \`$file\`" >> file_diff_summary.md
+            elif [[ $file == src/hooks/* ]]; then
+              echo "- 🔵 **Hook**: \`$file\`" >> file_diff_summary.md
+            elif [[ $file == src/lib/* ]]; then
+              echo "- 🟣 **Library**: \`$file\`" >> file_diff_summary.md
+            elif [[ $file == tests/* ]]; then
+              echo "- 🧪 **Test**: \`$file\`" >> file_diff_summary.md
+            elif [[ $file == src/app/* ]]; then
+              echo "- 📄 **Page**: \`$file\`" >> file_diff_summary.md
+            else
+              echo "- ⚪ **Other**: \`$file\`" >> file_diff_summary.md
+            fi
+          done < changed_files.txt
+          
+          cat file_diff_summary.md
+      
+      - name: Generate comparison report
+        run: |
+          cat > upstream_comparison_report.md << 'EOF'
+          # Upstream Comparison Report
+          
+          **Branch**: \`${{ github.ref_name }}\`
+          **Upstream**: \`${{ env.UPSTREAM_REPO }}:${{ env.UPSTREAM_BRANCH }}\`
+          **Upstream SHA**: \`${{ steps.upstream.outputs.upstream_sha }}\`
+          **Our SHA**: \`${{ github.sha }}\`
+          
+          ## 📊 Summary
+          
+          | Metric | Value |
+          |--------|-------|
+          | Commits ahead | ${{ steps.diff.outputs.commit_count }} |
+          | Files changed | ${{ steps.file_diff.outputs.file_count }} |
+          | Upstream tests pass | ${{ fromJson(steps.test_comparison.outputs.comparison).upstream_tests_passed }} |
+          | Our tests pass | ${{ fromJson(steps.test_comparison.outputs.comparison).our_tests_passed }} |
+          | **Regression detected** | ${{ fromJson(steps.test_comparison.outputs.comparison).regression }} |
+          | New failure (both fail) | ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure }} |
+          | Fixed upstream bug | ${{ fromJson(steps.test_comparison.outputs.comparison).fixed }} |
+          
+          ## 📝 What We Changed (Commits)
+          \`\`\`
+          $(cat commit_diff.txt 2>/dev/null | head -30 || echo "No commit diff available")
+          \`\`\`
+          
+          ## 📁 File Changes by Category
+          $(cat file_diff_summary.md 2>/dev/null || echo "No file diff available")
+          
+          ## 🔍 Test Status Interpretation
+          
+          | Status | Meaning | Action |
+          |--------|---------|--------|
+          | Regression ❌ | Upstream passes, we fail | **BLOCKER** - Fix immediately |
+          | New failure ⚠️ | Both fail | Investigate - may be upstream issue |
+          | Fixed ✅ | Upstream fails, we pass | Good - we fixed upstream bug |
+          | Parity ✅ | Both pass | Good - no regression |
+          
+          ## 🚨 Required Actions
+          ${{ fromJson(steps.test_comparison.outputs.comparison).regression == true && '### 🛑 REGRESSION DETECTED
+
+**Upstream tests pass but our tests fail.** This means our changes broke something that worked upstream.
+
+**Required**: Fix failing tests before merge.
+' || '' }}
+          ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure == true && '### ⚠️ NEW FAILURE
+
+**Both upstream and our tests fail.** This may be an upstream issue or environment problem.
+
+**Required**: Investigate if upstream is broken or if our environment differs.
+' || '' }}
+          ${{ fromJson(steps.test_comparison.outputs.comparison).fixed == true && '### ✅ FIXED UPSTREAM BUG
+
+**Upstream tests fail but our tests pass.** We fixed a bug that exists upstream.
+
+**Optional**: Consider contributing fix upstream.
+' || '' }}
+          
+          EOF
+          cat upstream_comparison_report.md
+      
+      - name: Upload comparison artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-comparison-${{ github.sha }}
+          path: |
+            upstream_comparison_report.md
+            commit_diff.txt
+            changed_files.txt
+            file_diff_summary.md
+            test_comparison.json
+          retention-days: 30
+      
+      - name: Post PR comment (if PR)
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('upstream_comparison_report.md', 'utf8');
+            
+            await github.rest.issues.createComment({
+              issue_number: ${{ github.event.number }},
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: report
+            });
+
+  # 5. Lint & Type Check
+  lint-typecheck:
+    name: Lint & Type Check
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+      
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit
+      
+      - name: Run lint
+        run: npm run lint
+      
+      - name: Run typecheck
+        run: npm run typecheck
+
+  # 6. Security Scan
+  security-scan:
+    name: Security Scan
+    needs: install
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+      
+      - name: Run npm audit
+        run: npm audit --audit-level=high || true
+      
+      - name: Run Snyk (if configured)
+        uses: snyk/actions/node@master
+        if: env.SNYK_TOKEN != ''
+        with:
+          command: test
+          args: --severity-threshold=high
+      
+      - name: Secret scan
+        uses: trufflesecurity/trufflehog@v3
+        with:
+          path: ./
+          base: ${{ steps.upstream.outputs.upstream_sha }}
+          head: ${{ github.sha }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
