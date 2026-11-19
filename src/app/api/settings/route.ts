@@ -191,11 +191,9 @@ export async function GET(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
-    // Rate limiting: per-user (10/min) + per-IP (5/min)
-    const { response: rateLimitResponse, headers: rateLimitHeaders } = await rateLimitMiddleware(request);
-    if (rateLimitResponse) return rateLimitResponse;
-    // Rate limit headers will be merged in response
-    const rateLimitHeaderEntries = Object.entries(rateLimitHeaders);
+  // Rate limiting: per-user (10/min) + per-IP (5/min)
+  const { response: rateLimitResponse, headers: rateLimitHeaders } = await rateLimitMiddleware(request);
+  if (rateLimitResponse) return rateLimitResponse;
 
   try {
     const settings = await getSettings();
@@ -259,7 +257,7 @@ export async function GET(request: Request) {
           ? { cliproxyapi_model_mapping: cliproxyapiModelMapping }
           : {}),
       },
-      { headers: settingsResponseHeaders(settingsRevision) }
+      { headers: { ...settingsResponseHeaders(settingsRevision), ...rateLimitHeaders } }
     );
   } catch (error) {
     console.log("Error getting settings:", error);
