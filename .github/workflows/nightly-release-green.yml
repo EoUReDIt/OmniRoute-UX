@@ -81,8 +81,17 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         id: runtime
         with:
-          node-version: "24"
+          node-version: "27"
           package-manager-cache: false
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - name: Install GitHub CLI
         run: |
           # Install gh CLI if not present
@@ -786,7 +795,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "24"
+          node-version: "27"
           cache: npm
 
       - uses: ./.github/actions/npm-ci-retry
@@ -887,7 +896,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "24"
+          node-version: "27"
           cache: npm
 
       - uses: ./.github/actions/npm-ci-retry
