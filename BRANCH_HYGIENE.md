@@ -13,11 +13,11 @@
 | Branch | Phase | Status | PR | Merged | Ready to Delete | Notes |
 |--------|-------|--------|-----|--------|-----------------|-------|
 | `release/v3.8.55` | — | **PROTECTED** | — | — | ❌ NEVER | Main release branch |
-| `ux/simple-mode-phase1-backend` | 1 | ✅ Merged | #3 | ✅ | ✅ YES | Deleted after merge |
-| `ux/simple-mode-phase2-frontend` | 2 | ✅ Merged | #4 | ✅ | ✅ YES | Deleted after merge |
-| `ux/simple-mode-phase1-sidebar` | 3 | ✅ Merged | #6 | ✅ | ✅ YES | Deleted after merge |
-| `ux/simple-mode-phase1-banners` | 4 | 🟢 GREEN Phase | #8 | ❌ | ❌ NO | Active - GREEN phase |
-| `ux/simple-mode-phase1-local-model` | 5 | ⏳ Not Started | — | ❌ | ❌ NO | Next: Routing Hint Cache |
+| `ux/simple-mode-phase1-backend` | 1 | ✅ Merged | #3 | ✅ | ✅ DELETED | Deleted after merge |
+| `ux/simple-mode-phase2-frontend` | 2 | ✅ Merged | #4 | ✅ | ✅ DELETED | Deleted after merge |
+| `ux/simple-mode-phase1-sidebar` | 3 | ✅ Merged | #6 | ✅ | ✅ DELETED | Deleted after merge |
+| `ux/simple-mode-phase1-banners` | 4 | ✅ Merged | #8 | ✅ | ✅ DELETED | Deleted after merge |
+| `ux/simple-mode-phase1-local-model` | 5 | 🔴 RED Phase | #9 | ❌ | ❌ NO | Active — RED phase |
 | `ux/simple-mode-phase1-integration-tests` | 6 | ⏳ Not Started | — | ❌ | ❌ NO | After Phase 5 |
 
 ---
@@ -26,20 +26,12 @@
 
 | Branch | Merged PR | Merge Date | Safe to Delete |
 |--------|-----------|------------|----------------|
-| `ux/simple-mode-phase1-backend` | #3 | 2026-11-19 | ✅ YES |
-| `ux/simple-mode-phase2-frontend` | #4 | 2026-11-19 | ✅ YES |
-| `ux/simple-mode-phase1-sidebar` | #6 | 2026-11-19 | ✅ YES |
+| `ux/simple-mode-phase1-backend` | #3 | 2026-11-19 | ✅ DELETED |
+| `ux/simple-mode-phase2-frontend` | #4 | 2026-11-19 | ✅ DELETED |
+| `ux/simple-mode-phase1-sidebar` | #6 | 2026-11-19 | ✅ DELETED |
+| `ux/simple-mode-phase1-banners` | #8 | 2026-11-19 | ✅ DELETED |
 
-**Command to delete**:
-```bash
-# Local
-git branch -d ux/simple-mode-phase1-backend ux/simple-mode-phase2-frontend ux/simple-mode-phase1-sidebar
-
-# Remote (after confirming merge)
-gh api repos/EoUReDIt/OmniRoute-UX/git/refs/heads/ux/simple-mode-phase1-backend --method DELETE
-gh api repos/EoUReDIt/OmniRoute-UX/git/refs/heads/ux/simple-mode-phase2-frontend --method DELETE
-gh api repos/EoUReDIt/OmniRoute-UX/git/refs/heads/ux/simple-mode-phase1-sidebar --method DELETE
-```
+**All 4 merged branches deleted** ✅
 
 ---
 
@@ -47,8 +39,7 @@ gh api repos/EoUReDIt/OmniRoute-UX/git/refs/heads/ux/simple-mode-phase1-sidebar 
 
 | Branch | Phase | Current Status | Next Action |
 |--------|-------|----------------|-------------|
-| `ux/simple-mode-phase1-banners` | 4 | 🟢 GREEN Phase | @stackier implementing components |
-| `ux/simple-mode-phase1-local-model` | 5 | ⏳ Not Started | Create branch + PR for Routing Hint Cache |
+| `ux/simple-mode-phase1-local-model` | 5 | 🔴 RED Phase | @stackier writing failing tests |
 | `ux/simple-mode-phase1-integration-tests` | 6 | ⏳ Not Started | After Phase 5 |
 
 ---
@@ -83,7 +74,6 @@ When a PR is merged:
 
 | Date | Action |
 |------|--------|
-| After Phase 4 merge | Delete `ux/simple-mode-phase1-banners` |
 | After Phase 5 merge | Delete `ux/simple-mode-phase1-local-model` |
 | After Phase 6 merge | Delete `ux/simple-mode-phase1-integration-tests` |
 | Monthly | Audit all branches, delete stale (>30 days unmerged) |
