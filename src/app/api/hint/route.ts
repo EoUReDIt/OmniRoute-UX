@@ -54,8 +54,6 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // 3. Handle based on operation type
-  const operation = body.hint.substring(0, 10) // Simple heuristic
-
   if (body.hint.startsWith('STORE:')) {
     // Store hint value
     const actualValue = body.hint.substring(6)
