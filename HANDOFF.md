@@ -11,28 +11,27 @@
 
 Implement **Advanced Screen Banners** per `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Section 13):
 
-1. **Banner Text** — "This is an advanced screen"
+1. **Banner Component** — "This is an advanced screen" message
 2. **Action Buttons** — "Back to Home" / "Open in Full View"
-3. **Banner Visibility** — Shows on advanced pages when in Simple Mode
-4. **localStorage Integration** — "Open in Full View" writes `original` to localStorage
-4. **Mode Integration** — Header Simple/Full toggle controls `dashboardUiMode`
+3. **Visibility Logic** — Show only on advanced pages in Simple Mode
+4. **Mode Integration** — "Open in Full View" writes `original` to localStorage
+5. **Accessibility** — `role="alert"`, `aria-live="polite"`
 
 ---
 
 ## 🛡️ Security Gates (from @protecor-kiar)
 
 ### 🔴 CRITICAL — Secret Redaction
-- Banner MUST NOT expose secrets
+- Banner MUST NOT expose any secrets
 - No secret data in banner text or buttons
 
 ### 🟠 HIGH — Feature Flag Security
-- `dashboardUiMode` defaults to `original` (missing = original)
-- Explicit opt-in to Simple Mode
-- Banner visibility gated by mode
+- Banner only shows in Simple Mode (explicit opt-in)
+- `dashboardUiMode` defaults to `original` (Full View)
 
 ### 🟡 MEDIUM — Auth & Error Hygiene
-- Banner logic server-side accessible
-- No auth bypass through Simple Mode
+- No auth bypass through banner actions
+- Rate limits apply to any banner-triggered endpoints
 
 ---
 
@@ -41,10 +40,9 @@ Implement **Advanced Screen Banners** per `docs/ux-simplification/PHASE1-feature
 | Test | Path | Status |
 |------|------|--------|
 | Advanced Banner unit test | `src/components/__tests__/AdvancedBanner.test.tsx` | ⏳ Pending |
-| Banner E2E test | `tests/e2e/advanced-banner.spec.ts` | ⏳ Pending |
-| Banner visibility test | `tests/e2e/banner-visibility.spec.ts` | ⏳ Pending |
-| Banner localStorage test | `tests/e2e/banner-localStorage.spec.ts` | ⏳ Pending |
-| Banner a11y test | `tests/e2e/banner-a11y.spec.ts` | ⏳ Pending |
+| Banner E2E flow test | `tests/e2e/advanced-banner.spec.ts` | ⏳ Pending |
+| Banner accessibility test | `tests/e2e/a11y.spec.ts` (banner section) | ⏳ Pending |
+| Banner visual regression | `tests/e2e/visual.spec.ts` (banner section) | ⏳ Pending |
 
 ---
 
@@ -52,9 +50,9 @@ Implement **Advanced Screen Banners** per `docs/ux-simplification/PHASE1-feature
 
 | Component | Implementation |
 |-----------|----------------|
-| `AdvancedBanner.tsx` | Enhanced with mode gating, localStorage, actions |
-| `useBannerVisibility.ts` | Hook for banner visibility logic |
-| `tests/e2e/*.spec.ts` | Playwright E2E, a11y tests |
+| `AdvancedBanner.tsx` | Banner with actions, hides in Full Mode |
+| `useAdvancedBanner.ts` | Hook for banner visibility logic |
+| `tests/e2e/*.spec.ts` | Playwright E2E, a11y, visual tests |
 
 ---
 
@@ -89,18 +87,31 @@ Implement **Advanced Screen Banners** per `docs/ux-simplification/PHASE1-feature
 
 ## 🔄 Next Actions
 
-1. **@stackier** writes all 5 failing tests (RED phase)
+1. **@stackier** writes all 4 failing tests (RED phase)
 2. **@protecor-kiar** reviews test assertions for security compliance
 3. **@stackier** implements components to pass tests (GREEN phase)
 4. **@protecor-kiar** reviews implementations
 5. **@frankie** merges to `release/v3.8.55`
-6. **Phase 5** begins: Local Model (Routing Hint Cache)
+6. **Phase 5** begins: `ux/simple-mode-phase1-local-model` (Routing Hint Cache / Local Model)
+
+---
+
+## 📝 Phase Order (Updated)
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1. Backend | Feature flags, auth, cache, rate limits | ✅ Merged |
+| 2. Frontend | Header Toggle, localStorage, Banner (basic), Sidebar, Guide Prompt | ✅ Merged |
+| 3. Sidebar Gating | Enhanced sidebar visibility, protected items | ✅ Merged |
+| **4. Banners** | **Advanced screen banners, actions, visibility** | 🔴 **ACTIVE** |
+| **5. Local Model** | **Routing Hint Cache (GLiNER + Qwen)** | ⏳ Next |
+| **6. Integration Tests** | **Full Vitest + Playwright suite** | ⏳ Last |
 
 ---
 
 ## 📝 Notes
 
-- Phase 3 already created `src/components/AdvancedBanner.tsx` (basic)
-- Phase 4 enhances it with full mode gating, localStorage, actions
+- Phase 2 already created basic `AdvancedBanner.tsx` — Phase 4 enhances with full visibility logic, actions, and tests
 - Design doc Section 13 defines banner behavior
-- Existing `AdvancedBanner.tsx` from Phase 3 should be enhanced
+- Phase 5 (Local Model) already implemented as standalone module in `C:/Users/michaela/routing_hint_cache/`
+- Phase 6 (Integration Tests) runs after all features complete
