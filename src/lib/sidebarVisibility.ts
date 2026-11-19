@@ -1,3 +1,10 @@
+/**
+ * Enhanced Sidebar Visibility Hooks
+ * Handles sidebar sections visibility by mode and protected items
+ * 
+ * GREEN phase — implements hooks for sidebar visibility gating
+ */
+
 import { useEffect, useState } from 'react'
 
 type SidebarSection = 'home' | 'endpoints' | 'providers' | 'models' |
@@ -42,14 +49,30 @@ export function useSidebarSections = (): {
   const [mode] = useLocalStorage<'simple' | 'full'>('simpleMode', 'full')
 
   const essentialSections: SidebarSection[] = [
-    'home', 'endpoints', 'providers', 'models',
+    'home',
+    'endpoints',
+    'providers',
+    'models',
   ]
 
   const allSections: SidebarSection[] = [
-    'home', 'endpoints', 'providers', 'models',
-    'omniproxy', 'analytics', 'costs', 'monitoring',
-    'dev-tools', 'agentic-features', 'other-features', 'configuration', 'help',
+    'home',
+    'endpoints',
+    'providers',
+    'models',
+    'omniproxy',
+    'analytics',
+    'costs',
+    'monitoring',
+    'dev-tools',
+    'agentic-features',
+    'other-features',
+    'configuration',
+    'help',
   ]
+
+  let visible: SidebarSection[]
+  let hidden: SidebarSection[]
 
   if (mode === 'simple') {
     visible = essentialSections
@@ -67,6 +90,7 @@ export function useSidebarSections = (): {
  * proxy and settings-sidebar are always visible regardless of mode
  */
 export function useProtectedSidebarItems = (): ProtectedSidebarItem[] => {
+  // Protected items are always visible - no localStorage dependency
   return ['proxy', 'settings-sidebar']
 }
 
