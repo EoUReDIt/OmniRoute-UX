@@ -192,12 +192,14 @@ export async function GET(request: Request) {
 
   try {
     const settings = await getSettings();
-    const settingsRevision = await getSettingsRevision();
     const {
       password,
       [SESSIONS_VALID_AFTER_SETTING]: _sessionsValidAfter,
       [REVOKED_SESSIONS_SETTING]: _revokedSessions,
+      oidcClientSecret,
+      entraGraphClientSecret,
       ...safeSettings
+    } = settings;
     } = settings;
 
     const runtimePorts = getRuntimePorts();
@@ -218,7 +220,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       {
-        ...safeSettings,
+        ...responseSettings,
         settingsRevision,
         hasPassword: hasManagementPasswordConfigured(settings),
         runtimePorts,
