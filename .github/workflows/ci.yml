@@ -152,6 +152,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     needs: changes
     # P3 (plano mestre): a release-PR viva fica DRAFT o ciclo inteiro — jobs pesados pulam
     # drafts (ciclo v3.8.44: 123 runs pesados re-disparados por merges na release, 88 cancelados).
@@ -327,6 +328,7 @@ jobs:
   quality-gate:
     name: Quality Ratchet
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     # needs lint so eslint-results artifact is available (same inventory as the
     # blocking lint step). Allow lint failure so other ratchets still run.
     needs: [changes, test-coverage, lint]
@@ -1743,7 +1745,7 @@ jobs:
     # (~5min saved per shard). 9 shards (up from 6) reduces tests per shard by
     # ~33%. Playwright browser is cached across runs (~1.5min saved per shard).
     # Heavy shard target: ≤20min (was ~40min). Timeout 45min to cover slow runners.
-    timeout-minutes: 45
+    timeout-minutes: ${{ startsWith(github.ref, 'refs/heads/omni-queue/') && 35 || 25 }}
     needs: [build, changes]
     # Tests-only diffs outside tests/e2e/ cannot change the served app. A hotfix
     # label is not evidence for this candidate and cannot waive required tests.
@@ -1883,6 +1885,7 @@ jobs:
   test-security:
     name: Security Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     # needs: changes (not build) — no artifact consumed; see test-unit note.
     needs: changes
     if: ${{ github.event_name != 'pull_request' || (needs.changes.outputs.code == 'true' && (github.event.pull_request.draft == false || needs.changes.outputs.queueCandidate == 'true')) }}
@@ -1922,7 +1925,7 @@ jobs:
   test-ecosystem:
     name: Ecosystem E2E (live server)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     # needs: changes (not build) — the runner boots its own dev server.
     needs: changes
     # Full-matrix lane (2026-10-27): ordinary PRs skip it; push, dispatch, merge_group and the
@@ -1960,7 +1963,7 @@ jobs:
   test-protocols-e2e:
     name: Protocol Clients E2E (live server, advisory)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     needs: changes
     # Full-matrix lane (2026-10-27): ordinary PRs skip it; push, dispatch, merge_group and the
     # Mergify queue candidate run it (admission condition full-code). Before a manual merge:
