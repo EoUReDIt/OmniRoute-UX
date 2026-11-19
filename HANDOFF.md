@@ -1,7 +1,7 @@
 # HANDOFF.md — Phase 3: Sidebar Section Visibility Gating
 
-**Branch:** `ux/simple-mode-phase3-sidebar` → `release/v3.8.55`
-**Base Commit:** `043e830aa55c81ac72c8ef4d9ed569abfc4d1fcf`
+**Branch:** `ux/simple-mode-phase1-sidebar` → `release/v3.8.55`
+**Base Commit:** `be8c3b3c65ac37368fe2b7466256a6a5e6338904`
 **Status:** 🔴 RED PHASE — Writing failing tests
 **Updated:** 2026-11-19
 
@@ -9,30 +9,30 @@
 
 ## 🎯 Phase 3 Goal
 
-Complete Sidebar Section Visibility Gating per `docs/ux-simplification/PHASE1-feature-map-and-design.md`:
+Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE1-feature-map-and-design.md`:
 
-1. **Sidebar Sections Hidden in Simple Mode** — Only "Essentials" sections visible
-2. **Sidebar Sections Shown in Full Mode** — All 10 sections visible (Home, OmniProxy, Analytics, Costs, Monitoring, Dev Tools, Agentic Features, Other Features, Configuration, Help)
-3. **Protected Items Always Visible** — `proxy` and `settings-sidebar` cannot be hidden (from `PROTECTED_SIDEBAR_ITEM_IDS`)
-4. **PATCH `/api/settings` Mode Toggle** — `dashboardUiMode` toggles between `simple` and `original` (Full)
-5. **Round-trip PATCH** — `simple` ↔ `original` leaves `hiddenSidebarItems` and `sidebarActivePreset` untouched
+1. **Sidebar Sections** — Hide advanced sections in Simple Mode (Dev Tools, Agentic Features, Other Features, Configuration, Help)
+2. **Protected Items** — `proxy` and `settings-sidebar` always visible (`PROTECTED_SIDEBAR_ITEM_IDS`)
+3. **Short Nav** — Only show `ESSENTIALS_SIMPLE_ITEMS` in Simple Mode
+4. **Full View** — All sections visible, presets work as before
+5. **Toggle Integration** — Header Simple/Full toggle controls `dashboardUiMode`
 
 ---
 
 ## 🛡️ Security Gates (from @protecor-kiar)
 
 ### 🔴 CRITICAL — Secret Redaction
-- [ ] Guide prompt = boolean flags ONLY (never decrypted secrets)
-- [ ] Server-side proxy if guide needs secrets
+- Sidebar gating MUST NOT expose secrets
+- No secret data in sidebar items or visibility logic
 
 ### 🟠 HIGH — Feature Flag Security
-- [ ] `localGuideEnabled` OFF by default, explicit opt-in, audit-logged
-- [ ] `localGuideModel` validated against allowlist
+- `dashboardUiMode` defaults to `original` (missing = original)
+- Explicit opt-in to Simple Mode
+- Toggle writes to localStorage, audit-logged
 
 ### 🟡 MEDIUM — Auth & Error Hygiene
-- [ ] `requireAuth` on new routes
-- [ ] `sanitizeErrorMessage` on all new endpoints
-- [ ] Rate limiting on guide endpoint
+- Sidebar gating logic server-side accessible
+- No auth bypass through Simple Mode
 
 ---
 
@@ -40,10 +40,11 @@ Complete Sidebar Section Visibility Gating per `docs/ux-simplification/PHASE1-fe
 
 | Test | Path | Status |
 |------|------|--------|
-| Sidebar visibility unit test | `src/lib/__tests__/sidebar-visibility.test.ts` | ⏳ Pending |
-| Sidebar PATCH round-trip test | `src/app/api/settings/__tests__/mode-toggle.test.ts` | ⏳ Pending |
-| E2E sidebar visibility flow | `tests/e2e/sidebar-visibility.spec.ts` | ⏳ Pending |
-| E2E mode toggle round-trip | `tests/e2e/mode-roundtrip.spec.ts` | ⏳ Pending |
+| Sidebar visibility unit test | `src/lib/__tests__/sidebarVisibility.test.ts` | ⏳ Pending |
+| Sidebar gating E2E test | `tests/e2e/sidebar-gating.spec.ts` | ⏳ Pending |
+| Protected items test | `tests/e2e/protected-sidebar-items.spec.ts` | ⏳ Pending |
+| Simple nav test | `tests/e2e/simple-nav.spec.ts` | ⏳ Pending |
+| Full view test | `tests/e2e/full-view.spec.ts` | ⏳ Pending |
 
 ---
 
@@ -51,11 +52,10 @@ Complete Sidebar Section Visibility Gating per `docs/ux-simplification/PHASE1-fe
 
 | Component | Implementation |
 |-----------|----------------|
-| `sidebarVisibility.ts` | Enhanced: `useSidebarSections()` returns filtered sections based on mode |
-| `Sidebar.tsx` | Integration: consumes `useSidebarSections()` |
-| `/api/settings` PATCH | Handles `dashboardUiMode` toggle, preserves `hiddenSidebarItems` and `sidebarActivePreset` |
-| `mode-toggle.test.ts` | Unit test for PATCH round-trip |
-| `sidebar-visibility.spec.ts` | E2E test for sidebar filtering |
+| `sidebarVisibility.ts` | Enhanced with section gating logic |
+| `useSidebarVisibility.ts` | Hook for section visibility |
+| `Sidebar.tsx` modifications | Apply visibility gating |
+| `tests/e2e/*.spec.ts` | Playwright E2E tests |
 
 ---
 
@@ -64,8 +64,8 @@ Complete Sidebar Section Visibility Gating per `docs/ux-simplification/PHASE1-fe
 | Agent | Role |
 |-------|------|
 | **@frankie** | Repo manager — GitHub gateway, PR workflow, HANDOFF.md |
-| **@stackier** | Frontend implementation — Sidebar gating, PATCH handler, tests |
-| **@protecor-kiar** | Security review — No auth bypass, no secret leakage, feature flags default OFF |
+| **@stackier** | Frontend implementation — Sidebar gating, visibility logic |
+| **@protecor-kiar** | Security review — Secret redaction, feature flags, auth |
 | **@jonin-le** | Skill governance — `frontend-testing-patterns`, `popular-web-designs` |
 
 ---
@@ -82,27 +82,26 @@ Complete Sidebar Section Visibility Gating per `docs/ux-simplification/PHASE1-fe
 
 ## 📁 Current Branch State
 
-- **Branch:** `ux/simple-mode-phase3-sidebar`
-- **Base:** `release/v3.8.55` (SHA `043e830aa55c81ac72c8ef4d9ed569abfc4d1fcf`)
+- **Branch:** `ux/simple-mode-phase1-sidebar`
+- **Base:** `release/v3.8.55` (SHA `be8c3b3c65ac37368fe2b7466256a6a5e6338904`)
 - **Commits:** 1 (this HANDOFF.md)
 
 ---
 
 ## 🔄 Next Actions
 
-1. **@stackier** writes 4 failing tests (RED phase)
+1. **@stackier** writes all 5 failing tests (RED phase)
 2. **@protecor-kiar** reviews test assertions for security compliance
 3. **@stackier** implements components to pass tests (GREEN phase)
 4. **@protecor-kiar** reviews implementations
 5. **@frankie** merges to `release/v3.8.55`
-6. **Phase 4** begins: `ux/simple-mode-phase4-banners`
+6. **Phase 4** begins: `ux/simple-mode-phase1-banners`
 
 ---
 
 ## 📝 Notes
 
-- Phase 1 backend complete and merged (PR #3)
-- Phase 2 frontend complete and merged (PR #4)
-- Using `frontend-testing-patterns` skill for Playwright, localStorage, a11y, visual regression patterns
-- Using `popular-web-designs` for Linear/Vercel-style component patterns
-- Design doc: `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Sections 2.3, 6.3, 6.4, 9)
+- Phase 2 already created `src/lib/sidebarVisibility.ts` (basic hook)
+- Phase 3 enhances it with full section gating logic
+- Design doc Section 2.3 defines `SIDEBAR_SECTIONS` (10 sections)
+- Design doc Section 5 defines `ESSENTIALS_SIMPLE_ITEMS` and `PROTECTED_SIDEBAR_ITEM_IDS`
