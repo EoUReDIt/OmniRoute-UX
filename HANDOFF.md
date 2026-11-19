@@ -90,20 +90,17 @@ Implement Frontend for UX Simple Mode per `docs/ux-simplification/PHASE1-feature
 
 ## 📁 Current Branch State
 
-- **Branch:** `ux/simple-mode-phase2-frontend`
-- **Base:** `release/v3.8.55` (SHA `790af231bc7fbde1da6a2657c87240cdc16f485d`)
-- **Commits:** 1 (this HANDOFF.md)
+- **Branch:** `release/v3.8.55` (Phase 2 merged)
+- **Latest Commit:** Phase 2 merge commit
+- **Commits:** Phase 1 + Phase 2 complete
 
 ---
 
 ## 🔄 Next Actions
 
-1. **@stackier** writes all 9 failing tests (RED phase)
-2. **@protecor-kiar** reviews test assertions for security compliance
-3. **@stackier** implements components to pass tests (GREEN phase)
-4. **@protecor-kiar** reviews implementations
-5. **@frankie** merges to `release/v3.8.55`
-6. **Phase 3** begins: Integration/QA (end-to-end flows, auth verification, error sanitization)
+1. **Phase 3 begins** → create `ux/simple-mode-phase1-sidebar` branch + PR for Sidebar section visibility gating
+2. **Phase 4** → `ux/simple-mode-phase1-banners` for Advanced-screen banners
+3. **Phase 5** → `ux/simple-mode-phase1-tests` for Vitest + Playwright integration tests
 
 ---
 
