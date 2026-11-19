@@ -197,8 +197,20 @@ export async function GET(request: Request) {
       password,
       [SESSIONS_VALID_AFTER_SETTING]: _sessionsValidAfter,
       [REVOKED_SESSIONS_SETTING]: _revokedSessions,
+      oidcClientSecret,
+      entraGraphClientSecret,
       ...safeSettings
     } = settings;
+
+    // Create response settings with boolean flags only — never decrypted secrets
+    const responseSettings = {
+      ...safeSettings,
+      oidcClientSecretConfigured: Boolean(oidcClientSecret),
+      entraGraphClientSecretConfigured: Boolean(entraGraphClientSecret),
+    };
+    // Ensure actual secrets are never included in response
+    delete responseSettings.oidcClientSecret;
+    delete responseSettings.entraGraphClientSecret;
 
     const runtimePorts = getRuntimePorts();
     const { CLOUD_URL } = await import("@/lib/cloudSync");
