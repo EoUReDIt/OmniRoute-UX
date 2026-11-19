@@ -106,10 +106,13 @@ done | sort -k3
 
 ---
 
-## 📝 Notes
+## 🔧 GitHub Actions Workflow Fixes (2026-11-19)
 
-- Phase 1-3 branches already merged and ready for deletion
-- Phase 4 (banners) currently in GREEN phase - do not delete
-- Phase 5 (local model) and Phase 6 (integration) not started
-- All branches based on `release/v3.8.55` - no direct upstream tracking
-- Upstream (`diegosouzapw/OmniRoute`) is reference only - no pushes
+| Workflow | Status | Key Fixes |
+|----------|--------|-----------|
+| `ci-test-comparison.yml` (NEW) | ✅ Fixed | Shell escaping, JSON generation, upstream checkout |
+| `ci-release.yml` (NEW) | ✅ Fixed | Changelog generation, Docker perms, NPM token |
+| `ci.yml` (EXISTING) | ✅ Fixed | Concurrency simplification, timeout, continue-on-error |
+| `nightly-release-green.yml` | ✅ Fixed | Added gh CLI installation |
+
+**Verification**: Trigger a test push to verify all workflows pass.
