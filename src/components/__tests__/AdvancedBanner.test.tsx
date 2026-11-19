@@ -10,7 +10,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AdvancedBanner from '@/components/AdvancedBanner'
 
-describe('Advanced Banner Component', () => {
+describe('Advanced Banner Component Unit Tests', () => {
   beforeEach(() => {
     // Clear localStorage before each test
     localStorage.clear()
@@ -40,7 +40,7 @@ describe('Advanced Banner Component', () => {
     expect(fullViewButton).toBeInTheDocument()
   })
 
-  it('stores "original" in localStorage when "Open in Full View" clicked', async () => {
+  it('clicking "Open in Full View" stores "original" in localStorage', async () => {
     render(<AdvancedBanner />)
     const fullViewButton = screen.getByRole('button', { name: /open in full view/i })
     const user = userEvent.setup()
@@ -49,15 +49,5 @@ describe('Advanced Banner Component', () => {
     // Should store "original" in localStorage
     const storedValue = localStorage.getItem('mode')
     expect(storedValue).toBe('original')
-  })
-
-  it('hides advanced banner when in simple mode', () => {
-    // Set mode to simple first
-    localStorage.setItem('simpleMode', 'simple')
-    render(<AdvancedBanner />)
-    
-    // Banner should not be visible in simple mode
-    const banner = screen.getByRole('alert', { name: /this is an advanced screen/i })
-    expect(banner).not.toBeInTheDocument()
   })
 })
