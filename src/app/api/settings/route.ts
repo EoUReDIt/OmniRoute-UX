@@ -32,6 +32,7 @@ import {
   verifyManagementPassword,
 } from "@/lib/auth/managementPassword";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { rateLimitMiddleware } from "@/lib/rate-limit/rateLimiter";
 import { requireOperatorCredential } from "@/lib/api/operatorCredential";
 import { isPaidModelTarget } from "@/shared/utils/freeModels";
 import { getAuditRequestContext, logAuditEvent } from "@/lib/compliance";
@@ -189,6 +190,12 @@ function attemptedKeysOf(body: Record<string, unknown> | null | undefined): stri
 export async function GET(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
+
+    // Rate limiting: per-user (10/min) + per-IP (5/min)
+    const { response: rateLimitResponse, headers: rateLimitHeaders } = await rateLimitMiddleware(request);
+    if (rateLimitResponse) return rateLimitResponse;
+    // Rate limit headers will be merged in response
+    const rateLimitHeaderEntries = Object.entries(rateLimitHeaders);
 
   try {
     const settings = await getSettings();
