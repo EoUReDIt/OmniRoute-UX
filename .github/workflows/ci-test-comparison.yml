@@ -10,13 +10,18 @@ on:
       compare_upstream:
         description: 'Compare against upstream'
         required: false
-        default: 'true'
+        default: true
         type: boolean
 
 env:
   NODE_VERSION: '20'
   UPSTREAM_REPO: 'diegosouzapw/OmniRoute'
   UPSTREAM_BRANCH: 'main'
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
 
 jobs:
   # 1. Install & Build
@@ -124,7 +129,7 @@ jobs:
     needs: [install, unit-tests, e2e-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    if: github.event.inputs.compare_upstream == 'true' || github.event_name != 'workflow_dispatch'
+    if: ${{ github.event.inputs.compare_upstream == true || github.event_name != 'workflow_dispatch' }}
     steps:
       - name: Checkout fork with full history
         uses: actions/checkout@v4
@@ -172,8 +177,8 @@ jobs:
           OUR_TEST_EXIT=0
           npm run test:unit 2>&1 | tail -30 || OUR_TEST_EXIT=1
           
-          # Compare
-          cat > test_comparison.json << EOF
+          # Compare - write JSON file directly
+          cat > test_comparison.json << 'EOF'
           {
             "upstream_tests_passed": $([[ $UPSTREAM_TEST_EXIT -eq 0 ]] && echo true || echo false),
             "our_tests_passed": $([[ $OUR_TEST_EXIT -eq 0 ]] && echo true || echo false),
@@ -183,7 +188,12 @@ jobs:
           }
           EOF
           cat test_comparison.json
-          echo "comparison=$(cat test_comparison.json | jq -c .)" >> $GITHUB_OUTPUT
+          # Use node to parse JSON and set output (no jq dependency)
+          node -e "
+            const fs = require('fs');
+            const data = JSON.parse(fs.readFileSync('test_comparison.json', 'utf8'));
+            console.log('comparison=' + JSON.stringify(data));
+          " >> $GITHUB_OUTPUT
       
       - name: File diff summary (what files changed)
         id: file_diff
@@ -216,6 +226,7 @@ jobs:
           cat file_diff_summary.md
       
       - name: Generate comparison report
+        id: report
         run: |
           cat > upstream_comparison_report.md << 'EOF'
           # Upstream Comparison Report
@@ -231,11 +242,11 @@ jobs:
           |--------|-------|
           | Commits ahead | ${{ steps.diff.outputs.commit_count }} |
           | Files changed | ${{ steps.file_diff.outputs.file_count }} |
-          | Upstream tests pass | ${{ fromJson(steps.test_comparison.outputs.comparison).upstream_tests_passed }} |
-          | Our tests pass | ${{ fromJson(steps.test_comparison.outputs.comparison).our_tests_passed }} |
-          | **Regression detected** | ${{ fromJson(steps.test_comparison.outputs.comparison).regression }} |
-          | New failure (both fail) | ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure }} |
-          | Fixed upstream bug | ${{ fromJson(steps.test_comparison.outputs.comparison).fixed }} |
+          | Upstream tests pass | ${{ steps.test_comparison.outputs.upstream_tests_passed }} |
+          | Our tests pass | ${{ steps.test_comparison.outputs.our_tests_passed }} |
+          | **Regression detected** | ${{ steps.test_comparison.outputs.regression }} |
+          | New failure (both fail) | ${{ steps.test_comparison.outputs.new_failure }} |
+          | Fixed upstream bug | ${{ steps.test_comparison.outputs.fixed }} |
           
           ## 📝 What We Changed (Commits)
           \`\`\`
@@ -255,19 +266,19 @@ jobs:
           | Parity ✅ | Both pass | Good - no regression |
           
           ## 🚨 Required Actions
-          ${{ fromJson(steps.test_comparison.outputs.comparison).regression == true && '### 🛑 REGRESSION DETECTED
+          ${{ steps.test_comparison.outputs.regression == 'true' && '### 🛑 REGRESSION DETECTED
 
 **Upstream tests pass but our tests fail.** This means our changes broke something that worked upstream.
 
 **Required**: Fix failing tests before merge.
 ' || '' }}
-          ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure == true && '### ⚠️ NEW FAILURE
+          ${{ steps.test_comparison.outputs.new_failure == 'true' && '### ⚠️ NEW FAILURE
 
 **Both upstream and our tests fail.** This may be an upstream issue or environment problem.
 
 **Required**: Investigate if upstream is broken or if our environment differs.
 ' || '' }}
-          ${{ fromJson(steps.test_comparison.outputs.comparison).fixed == true && '### ✅ FIXED UPSTREAM BUG
+          ${{ steps.test_comparison.outputs.fixed == 'true' && '### ✅ FIXED UPSTREAM BUG
 
 **Upstream tests fail but our tests pass.** We fixed a bug that exists upstream.
 
@@ -343,14 +354,14 @@ jobs:
         run: npm audit --audit-level=high || true
       
       - name: Run Snyk (if configured)
-        uses: snyk/actions/node@master
+        uses: snyk/actions/node@3.0.0
         if: env.SNYK_TOKEN != ''
         with:
           command: test
           args: --severity-threshold=high
       
       - name: Secret scan
-        uses: trufflesecurity/trufflehog@v3
+        uses: trufflesecurity/trufflehog@3.82.0
         with:
           path: ./
           base: ${{ steps.upstream.outputs.upstream_sha }}
