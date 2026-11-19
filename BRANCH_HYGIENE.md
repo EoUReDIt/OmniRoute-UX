@@ -2,7 +2,7 @@
 
 **Purpose**: Track all branches in the fork, their status, and cleanup readiness.
 
-**Last Updated**: 2026-11-19 (Phase 5 merged)
+**Last Updated**: 2026-11-19 (Phase 6 started)
 **Main Branch**: `release/v3.8.55`
 **Upstream**: `diegosouzapw/OmniRoute` (main)
 
@@ -18,7 +18,8 @@
 | `ux/simple-mode-phase1-sidebar` | 3 | ✅ Merged | #6 | ✅ | ✅ DELETED | Deleted after merge |
 | `ux/simple-mode-phase1-banners` | 4 | ✅ Merged | #8 | ✅ | ✅ DELETED | Deleted after merge |
 | `ux/simple-mode-phase1-local-model` | 5 | ✅ Merged | #9 | ✅ | ✅ DELETED | Deleted after merge |
-| `ux/simple-mode-phase1-integration-tests` | 6 | ⏳ Not Started | — | ❌ | ❌ NO | After Phase 5 |
+| `ux/simple-mode-phase1-integration-tests` | 6 | 🔴 RED Phase | #10 | ❌ | ❌ NO | Active — RED phase |
+| `ux/simple-mode-phase1-integration-tests` | 6 | 🔴 RED Phase | #10 | ❌ | ❌ NO | Active — RED phase |
 
 ---
 
@@ -41,6 +42,7 @@
 | Branch | Phase | Current Status | Next Action |
 |--------|-------|----------------|-------------|
 | `ux/simple-mode-phase1-local-model` | 5 | ✅ Merged | #9 | ✅ | ✅ DELETED | Deleted after merge |
+| `ux/simple-mode-phase1-integration-tests` | 6 | 🔴 RED Phase | #10 | ❌ | ❌ NO | Active — RED phase |
 | `ux/simple-mode-phase1-integration-tests` | 6 | ⏳ Not Started | After Phase 5 |
 
 ---
@@ -76,6 +78,7 @@ When a PR is merged:
 | Date | Action |
 |------|--------|
 | After Phase 5 merge | Delete `ux/simple-mode-phase1-local-model` | ✅ DONE |
+After Phase 6 merge | Delete `ux/simple-mode-phase1-integration-tests` |
 | After Phase 6 merge | Delete `ux/simple-mode-phase1-integration-tests` |
 | Monthly | Audit all branches, delete stale (>30 days unmerged) |
 
