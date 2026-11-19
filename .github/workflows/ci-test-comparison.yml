@@ -8,15 +8,15 @@ on:
   workflow_dispatch:
     inputs:
       compare_upstream:
-        description: 'Compare against upstream'
+        description: "Compare against upstream"
         required: false
         default: true
         type: boolean
 
 env:
-  NODE_VERSION: '20'
-  UPSTREAM_REPO: 'diegosouzapw/OmniRoute'
-  UPSTREAM_BRANCH: 'main'
+  NODE_VERSION: "20"
+  UPSTREAM_REPO: "diegosouzapw/OmniRoute"
+  UPSTREAM_BRANCH: "main"
 
 permissions:
   contents: read
@@ -41,7 +41,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -75,7 +75,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -104,7 +104,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -159,6 +159,9 @@ jobs:
       
       - name: Compare test results (what broke)
         id: test_comparison
+        env:
+          UPSTREAM_TEST_EXIT: 0
+          OUR_TEST_EXIT: 0
         run: |
           # Run tests on upstream commit (shallow)
           git stash --include-untracked
@@ -177,23 +180,19 @@ jobs:
           OUR_TEST_EXIT=0
           npm run test:unit 2>&1 | tail -30 || OUR_TEST_EXIT=1
           
-          # Compare - write JSON file directly
-          cat > test_comparison.json << 'EOF'
-          {
-            "upstream_tests_passed": $([[ $UPSTREAM_TEST_EXIT -eq 0 ]] && echo true || echo false),
-            "our_tests_passed": $([[ $OUR_TEST_EXIT -eq 0 ]] && echo true || echo false),
-            "regression": $([[ $UPSTREAM_TEST_EXIT -eq 0 && $OUR_TEST_EXIT -ne 0 ]] && echo true || echo false),
-            "new_failure": $([[ $UPSTREAM_TEST_EXIT -ne 0 && $OUR_TEST_EXIT -ne 0 ]] && echo true || echo false),
-            "fixed": $([[ $UPSTREAM_TEST_EXIT -ne 0 && $OUR_TEST_EXIT -eq 0 ]] && echo true || echo false)
-          }
-          EOF
-          cat test_comparison.json
-          # Use node to parse JSON and set output (no jq dependency)
-          node -e "
-            const fs = require('fs');
-            const data = JSON.parse(fs.readFileSync('test_comparison.json', 'utf8'));
-            console.log('comparison=' + JSON.stringify(data));
-          " >> $GITHUB_OUTPUT
+          # Compare - use node to write JSON (avoid shell escaping issues)
+          node << 'NODE_EOF'
+          const fs = require('fs');
+          const data = {
+            upstream_tests_passed: process.env.UPSTREAM_TEST_EXIT === '0',
+            our_tests_passed: process.env.OUR_TEST_EXIT === '0',
+            regression: process.env.UPSTREAM_TEST_EXIT === '0' && process.env.OUR_TEST_EXIT !== '0',
+            new_failure: process.env.UPSTREAM_TEST_EXIT !== '0' && process.env.OUR_TEST_EXIT !== '0',
+            fixed: process.env.UPSTREAM_TEST_EXIT !== '0' && process.env.OUR_TEST_EXIT === '0'
+          };
+          fs.writeFileSync('test_comparison.json', JSON.stringify(data, null, 2));
+          console.log('comparison=' + JSON.stringify(data));
+          NODE_EOF
       
       - name: File diff summary (what files changed)
         id: file_diff
@@ -242,11 +241,11 @@ jobs:
           |--------|-------|
           | Commits ahead | ${{ steps.diff.outputs.commit_count }} |
           | Files changed | ${{ steps.file_diff.outputs.file_count }} |
-          | Upstream tests pass | ${{ steps.test_comparison.outputs.upstream_tests_passed }} |
-          | Our tests pass | ${{ steps.test_comparison.outputs.our_tests_passed }} |
-          | **Regression detected** | ${{ steps.test_comparison.outputs.regression }} |
-          | New failure (both fail) | ${{ steps.test_comparison.outputs.new_failure }} |
-          | Fixed upstream bug | ${{ steps.test_comparison.outputs.fixed }} |
+          | Upstream tests pass | ${{ fromJson(steps.test_comparison.outputs.comparison).upstream_tests_passed }} |
+          | Our tests pass | ${{ fromJson(steps.test_comparison.outputs.comparison).our_tests_passed }} |
+          | **Regression detected** | ${{ fromJson(steps.test_comparison.outputs.comparison).regression }} |
+          | New failure (both fail) | ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure }} |
+          | Fixed upstream bug | ${{ fromJson(steps.test_comparison.outputs.comparison).fixed }} |
           
           ## 📝 What We Changed (Commits)
           \`\`\`
@@ -266,19 +265,19 @@ jobs:
           | Parity ✅ | Both pass | Good - no regression |
           
           ## 🚨 Required Actions
-          ${{ steps.test_comparison.outputs.regression == 'true' && '### 🛑 REGRESSION DETECTED
+          ${{ fromJson(steps.test_comparison.outputs.comparison).regression && '### 🛑 REGRESSION DETECTED
 
 **Upstream tests pass but our tests fail.** This means our changes broke something that worked upstream.
 
 **Required**: Fix failing tests before merge.
 ' || '' }}
-          ${{ steps.test_comparison.outputs.new_failure == 'true' && '### ⚠️ NEW FAILURE
+          ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure && '### ⚠️ NEW FAILURE
 
 **Both upstream and our tests fail.** This may be an upstream issue or environment problem.
 
 **Required**: Investigate if upstream is broken or if our environment differs.
 ' || '' }}
-          ${{ steps.test_comparison.outputs.fixed == 'true' && '### ✅ FIXED UPSTREAM BUG
+          ${{ fromJson(steps.test_comparison.outputs.comparison).fixed && '### ✅ FIXED UPSTREAM BUG
 
 **Upstream tests fail but our tests pass.** We fixed a bug that exists upstream.
 
@@ -329,7 +328,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: "npm"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
