@@ -1,5 +1,7 @@
 <div align="center">
 
+<!-- CI test trigger -->
+
 <img src="./docs/screenshots/MainOmniRoute.png" alt="OmniRoute Dashboard" width="820"/>
 
 <br/>
@@ -14,6 +16,8 @@
 </div>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 💰 ~1.62B Tokens / Month Across Third-Party Free Tiers
 
@@ -32,6 +36,8 @@
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 <h3>
 
@@ -64,6 +70,8 @@
 ## 📈 The Gateway Keeps Growing
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 |                           |          v3.8.50          | **v3.8.51** |      `v3.8.55+`       |
 | ------------------------- | :-----------------------: | :---------: | :-------------------: |
@@ -140,6 +148,8 @@
 </div>
 
 <div align="center">
+
+<!-- CI test trigger -->
   <b>🌐 In 67 languages</b>
   <br/><br/>
   <a href="README.md"><img src="docs/assets/flags/us.svg" width="30" alt="English (en)" title="English (en)"></a>
@@ -216,6 +226,8 @@
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 <a id="first-run"></a>
 
 ## 🆓 Install, connect a provider, then route through one endpoint
@@ -240,6 +252,8 @@ curl http://localhost:20128/v1/chat/completions \
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 # 💥 The Promise
 
 </div>
@@ -251,6 +265,8 @@ curl http://localhost:20128/v1/chat/completions \
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 # 🤔 Why OmniRoute?
 
 </div>
@@ -259,6 +275,8 @@ curl http://localhost:20128/v1/chat/completions \
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 <img src="./docs/diagrams/tier-cascade.svg" width="100%" alt="OmniRoute request flow: your IDE or CLI (Claude Code, Cursor, Cline…) calls one local endpoint (http://localhost:20128/v1); the OmniRoute Smart Router (RTK + Caveman compression, 22 routing strategies, circuit breakers, TLS stealth, MCP, A2A, guardrails) can fall back across 4 provider tiers while an eligible healthy target remains — Tier 1 Subscription, Tier 2 API Key, Tier 3 Cheap and Tier 4 Free."/>
 
 </div>
@@ -266,6 +284,8 @@ curl http://localhost:20128/v1/chat/completions \
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🤝 Supported by our Open Source Friends
 
@@ -345,6 +365,8 @@ curl http://localhost:20128/v1/chat/completions \
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🎯 Combos — The Flagship
 
@@ -510,6 +532,8 @@ All **22** strategies — mix & match per combo step:
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 🏆 What Sets OmniRoute Apart
 
 </div>
@@ -589,6 +613,8 @@ the current catalog at **[radar.omniroute.online/planos](https://radar.omniroute
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## ✨ What's New
 
 </div>
@@ -627,11 +653,15 @@ the current catalog at **[radar.omniroute.online/planos](https://radar.omniroute
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 🤖 Compatible CLIs & Coding Agents
 
 > One config — `http://localhost:20128/v1` — and **every** AI IDE or CLI runs on free & low-cost models.
 
 <div align="center">
+
+<!-- CI test trigger -->
 <table>
   <tr>
     <td align="center" width="76"><a href="https://github.com/anthropics/claude-code"><img src="./public/providers/claude.svg" width="40" alt="Claude Code"/><br/><sub><b>Claude Code</b></sub><br/><sub>                           </sub></a></td>
@@ -669,6 +699,8 @@ the current catalog at **[radar.omniroute.online/planos](https://radar.omniroute
 </div>
 
 <div align="center">
+
+<!-- CI test trigger -->
 <b>＋ also works with</b> · Agent Deck · Kiro · Command Code · Antigravity · Windsurf · AMP · <b>any OpenAI-compatible tool</b>
 </div>
 
@@ -702,6 +734,8 @@ of your shell history. → [CLI Integrations](docs/guides/CLI-INTEGRATIONS.md)
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 🌐 394 AI Providers — 153 Catalog-Marked Free
 
 </div>
@@ -709,6 +743,8 @@ of your shell history. → [CLI Integrations](docs/guides/CLI-INTEGRATIONS.md)
 > **394 registered providers** across the canonical chat, media, search, local, cloud-agent and system collections, including **153 carrying `hasFree: true` discovery metadata**. The chat model registry covers **239 providers / 3,059 distinct provider-model pairs / 1,475 raw model IDs**; the separate free-budget catalog has **465 per-model rows**, **34 recurring pools** and **51 recurring/keyless free-forever providers**. These are different denominators by design; definitions and pool-deduped calculations live in the [Provider Reference](docs/reference/PROVIDER_REFERENCE.md) and [Free Tiers](docs/reference/FREE_TIERS.md).
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ### 🏢 Every major lab — through one endpoint
 
@@ -771,6 +807,8 @@ of your shell history. → [CLI Integrations](docs/guides/CLI-INTEGRATIONS.md)
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 🖥️ Where OmniRoute Runs — Anywhere
 
 </div>
@@ -797,6 +835,8 @@ of your shell history. → [CLI Integrations](docs/guides/CLI-INTEGRATIONS.md)
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ### 🧩 New: OmniRoute inside VS Code's native Copilot Chat
 
@@ -826,6 +866,8 @@ From inside the editor: open the **Extensions** view, search **"OmniRoute"**, cl
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ### 🎩 New: OmniRouteTray — your gateway, living in the menu bar
 
@@ -863,6 +905,8 @@ docs live at <a href="https://github.com/zoispag/omniroute-tray">zoispag/omnirou
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 🔒 Private & Local-First
 
 </div>
@@ -874,6 +918,8 @@ docs live at <a href="https://github.com/zoispag/omniroute-tray">zoispag/omnirou
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🔌 Full CLI + A2A & MCP
 
@@ -939,6 +985,8 @@ claude mcp add --transport http omniroute http://localhost:20128/api/mcp/stream 
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🗜️ Save 15–95% Tokens — Automatically
 
@@ -1030,6 +1078,8 @@ Auto-trigger by token threshold, flip on the adaptive dial, pin a named profile,
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 # ⚡ Quick Start
 
@@ -1220,6 +1270,8 @@ same process on one port, so there is no separate CLI-only package today.
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 # 🎬 OmniRoute in Action
 
 </div>
@@ -1227,6 +1279,8 @@ same process on one port, so there is no separate CLI-only package today.
 ## 📹 Video Guides
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 <sub>Snapshot do painel em 2026-10-18 · Catálogo bruto: YT 1.352 | TT 334 | IG 290 · Frescor (dias): YT 5 | TT 48 | IG 49</sub>
 
@@ -1290,6 +1344,8 @@ Métricas canônicas em 2026-10-18: **1.976 vídeos únicos** · **20.220.289 vi
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 # 📧 Community & Help
 
 > Everything in one place — follow the maintainer, chat with the community, or open an issue.
@@ -1315,6 +1371,8 @@ Métricas canônicas em 2026-10-18: **1.976 vídeos únicos** · **20.220.289 vi
 
 <br/>
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🛠️ Tech Stack
 
@@ -1342,6 +1400,8 @@ Métricas canônicas em 2026-10-18: **1.976 vídeos únicos** · **20.220.289 vi
 </table>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 <br/>
 
@@ -1421,6 +1481,8 @@ Métricas canônicas em 2026-10-18: **1.976 vídeos únicos** · **20.220.289 vi
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 # ⭐ Top Contributors
 
@@ -1561,6 +1623,8 @@ Métricas canônicas em 2026-10-18: **1.976 vídeos únicos** · **20.220.289 vi
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 A heartfelt thank-you to the people who fund OmniRoute out of their own pocket — every contribution keeps the project free, independent and moving.
 
 <table>
@@ -1659,6 +1723,8 @@ A heartfelt thank-you to the people who fund OmniRoute out of their own pocket �
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 👥 1,000+ Contributors
 
 </div>
@@ -1690,6 +1756,8 @@ gh release create "v${VERSION}" --title "v${VERSION}" --generate-notes
 
 <div align="center">
 
+<!-- CI test trigger -->
+
 ## 📊 Stars
 
 <a href="https://www.star-history.com/?repos=diegosouzapw%2FOmniRoute&type=date&legend=top-left">
@@ -1703,6 +1771,8 @@ gh release create "v${VERSION}" --title "v${VERSION}" --generate-notes
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🌍 StarMapper
 
@@ -1718,6 +1788,8 @@ gh release create "v${VERSION}" --title "v${VERSION}" --generate-notes
 <br/>
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 ## 🙏 Acknowledgments
 
@@ -1835,6 +1907,8 @@ MIT License - see [LICENSE](LICENSE) for details.
 ---
 
 <div align="center">
+
+<!-- CI test trigger -->
 
 **[⬆ Back to top](#-omniroute)** · Built with ❤️ for the open-source AI community.
 
