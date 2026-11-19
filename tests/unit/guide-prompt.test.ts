@@ -1,7 +1,7 @@
 /**
  * Guide Prompt Unit Tests
  * Tests the guide prompt construction using boolean flags ONLY
- * CRITICAL: Must use boolean flags (true/false), NEVER raw secret values
+ * CRITICAL: Must use boolean flags ONLY, NEVER raw secret values
  * 
  * RED phase — these tests are expected to FAIL until implementation is complete
  */
@@ -11,20 +11,16 @@ import { buildGuidePrompt } from '@/lib/guide/prompt'
 
 describe('Guide Prompt Unit Tests', () => {
   beforeEach(() => {
-    // Clear any global state
     vi.clearAllMocks()
   })
 
   it('builds prompt with boolean flags only - oidcClientSecretConfigured', () => {
-    // Should use boolean flag, never raw secret
     const result = buildGuidePrompt({
       hasOidcClientSecret: true,
       oidcClientSecretConfigured: true,
     })
     
-    // Prompt should contain boolean flag status, NOT the secret value
     expect(result).toContain('oidcClientSecretConfigured: true')
-    // Should NOT contain the actual secret value
     expect(result).not.toContain('your-actual-secret-value')
   })
 
@@ -34,18 +30,26 @@ describe('Guide Prompt Unit Tests', () => {
       entraGraphClientSecretConfigured: false,
     })
     
-    // Prompt should reflect the configured flag status
     expect(result).toContain('entraGraphClientSecretConfigured: false')
-    // Should NOT contain the actual secret
     expect(result).not.toContain('your-actual-entra-secret')
   })
 
-  it('handles missing flag gracefully', () => {
+  it('includes transport and mcp flags', () => {
     const result = buildGuidePrompt({
-      // No flags set
+      mcpEnabled: true,
+      transport: 'streamable',
+      hasClientKey: true,
+      lastQuestion: 'How do I add a provider?',
     })
     
-    // Should still generate a valid prompt structure
+    expect(result).toContain('mcpEnabled: true')
+    expect(result).toContain('transport: streamable')
+    expect(result).toContain('hasClientKey: true')
+    expect(result).toContain('How do I add a provider?')
+  })
+
+  it('handles missing flags gracefully', () => {
+    const result = buildGuidePrompt({})
     expect(result).toBeDefined()
     expect(typeof result).toBe('string')
   })
@@ -53,13 +57,32 @@ describe('Guide Prompt Unit Tests', () => {
   it('does not include secret values in prompt output', () => {
     const result = buildGuidePrompt({
       hasOidcClientSecret: true,
-      oidcClientSecret: '«redacted:sk-…»',  // raw secret
+      oidcClientSecret: 'sk-live-redacted-secret',
       oidcClientSecretConfigured: true,
     })
     
-    // The secret value should NOT appear in the prompt
-    expect(result).not.toContain('«redacted:sk-…»')
-    // But the configured flag SHOULD appear
+    expect(result).not.toContain('sk-live-redacted-secret')
     expect(result).toContain('oidcClientSecretConfigured: true')
+  })
+
+  it('validates transport enum', () => {
+    const result = buildGuidePrompt({
+      transport: 'stdio',
+      mcpEnabled: true,
+    })
+    
+    expect(result).toContain('transport: stdio')
+  })
+
+  it('handles all allowed transport values', () => {
+    const transports = ['stdio', 'streamable', 'sse']
+    
+    for (const transport of transports) {
+      const result = buildGuidePrompt({
+        transport,
+        mcpEnabled: true,
+      })
+      expect(result).toContain(`transport: ${transport}`)
+    }
   })
 })
