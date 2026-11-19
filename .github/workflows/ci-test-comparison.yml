@@ -42,6 +42,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed \'s/v//\')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -76,6 +85,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed \'s/v//\')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -105,6 +123,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed \'s/v//\')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
@@ -329,6 +356,15 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: "npm"
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed \'s/v//\')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit
