@@ -187,8 +187,8 @@ jobs:
       - name: Compare test results (what broke)
         id: test_comparison
         env:
-          UPSTREAM_TEST_EXIT: 0
-          OUR_TEST_EXIT: 0
+          UPSTREAM_TEST_EXIT: "0"
+          OUR_TEST_EXIT: "0"
         run: |
           # Run tests on upstream commit (shallow)
           git stash --include-untracked
@@ -207,8 +207,8 @@ jobs:
           OUR_TEST_EXIT=0
           npm run test:unit 2>&1 | tail -30 || OUR_TEST_EXIT=1
           
-          # Compare - use node to write JSON (avoid shell escaping issues)
-          node << 'NODE_EOF'
+          # Compare - write JSON directly (avoid heredoc issues)
+          node -e "
           const fs = require('fs');
           const data = {
             upstream_tests_passed: process.env.UPSTREAM_TEST_EXIT === '0',
@@ -219,7 +219,7 @@ jobs:
           };
           fs.writeFileSync('test_comparison.json', JSON.stringify(data, null, 2));
           console.log('comparison=' + JSON.stringify(data));
-          NODE_EOF
+          "
       
       - name: File diff summary (what files changed)
         id: file_diff
