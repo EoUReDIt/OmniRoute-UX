@@ -1,37 +1,37 @@
-# HANDOFF.md — Phase 3: Sidebar Section Visibility Gating
+# HANDOFF.md — Phase 4: Advanced Screen Banners
 
-**Branch:** `ux/simple-mode-phase1-sidebar` → `release/v3.8.55`
-**Base Commit:** `be8c3b3c65ac37368fe2b7466256a6a5e6338904`
+**Branch:** `ux/simple-mode-phase1-banners` → `release/v3.8.55`
+**Base Commit:** `61ea2be701161e8a55f5400bc4be8f7b7605691e`
 **Status:** 🔴 RED PHASE — Writing failing tests
 **Updated:** 2026-11-19
 
 ---
 
-## 🎯 Phase 3 Goal
+## 🎯 Phase 4 Goal
 
-Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE1-feature-map-and-design.md`:
+Implement **Advanced Screen Banners** per `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Section 13):
 
-1. **Sidebar Sections** — Hide advanced sections in Simple Mode (Dev Tools, Agentic Features, Other Features, Configuration, Help)
-2. **Protected Items** — `proxy` and `settings-sidebar` always visible (`PROTECTED_SIDEBAR_ITEM_IDS`)
-3. **Short Nav** — Only show `ESSENTIALS_SIMPLE_ITEMS` in Simple Mode
-4. **Full View** — All sections visible, presets work as before
-5. **Toggle Integration** — Header Simple/Full toggle controls `dashboardUiMode`
+1. **Banner Text** — "This is an advanced screen"
+2. **Action Buttons** — "Back to Home" / "Open in Full View"
+3. **Banner Visibility** — Shows on advanced pages when in Simple Mode
+4. **localStorage Integration** — "Open in Full View" writes `original` to localStorage
+4. **Mode Integration** — Header Simple/Full toggle controls `dashboardUiMode`
 
 ---
 
 ## 🛡️ Security Gates (from @protecor-kiar)
 
 ### 🔴 CRITICAL — Secret Redaction
-- Sidebar gating MUST NOT expose secrets
-- No secret data in sidebar items or visibility logic
+- Banner MUST NOT expose secrets
+- No secret data in banner text or buttons
 
 ### 🟠 HIGH — Feature Flag Security
 - `dashboardUiMode` defaults to `original` (missing = original)
 - Explicit opt-in to Simple Mode
-- Toggle writes to localStorage, audit-logged
+- Banner visibility gated by mode
 
 ### 🟡 MEDIUM — Auth & Error Hygiene
-- Sidebar gating logic server-side accessible
+- Banner logic server-side accessible
 - No auth bypass through Simple Mode
 
 ---
@@ -40,11 +40,11 @@ Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE
 
 | Test | Path | Status |
 |------|------|--------|
-| Sidebar visibility unit test | `src/lib/__tests__/sidebarVisibility.test.ts` | ⏳ Pending |
-| Sidebar gating E2E test | `tests/e2e/sidebar-gating.spec.ts` | ⏳ Pending |
-| Protected items test | `tests/e2e/protected-sidebar-items.spec.ts` | ⏳ Pending |
-| Simple nav test | `tests/e2e/simple-nav.spec.ts` | ⏳ Pending |
-| Full view test | `tests/e2e/full-view.spec.ts` | ⏳ Pending |
+| Advanced Banner unit test | `src/components/__tests__/AdvancedBanner.test.tsx` | ⏳ Pending |
+| Banner E2E test | `tests/e2e/advanced-banner.spec.ts` | ⏳ Pending |
+| Banner visibility test | `tests/e2e/banner-visibility.spec.ts` | ⏳ Pending |
+| Banner localStorage test | `tests/e2e/banner-localStorage.spec.ts` | ⏳ Pending |
+| Banner a11y test | `tests/e2e/banner-a11y.spec.ts` | ⏳ Pending |
 
 ---
 
@@ -52,10 +52,9 @@ Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE
 
 | Component | Implementation |
 |-----------|----------------|
-| `sidebarVisibility.ts` | Enhanced with section gating logic |
-| `useSidebarVisibility.ts` | Hook for section visibility |
-| `Sidebar.tsx` modifications | Apply visibility gating |
-| `tests/e2e/*.spec.ts` | Playwright E2E tests |
+| `AdvancedBanner.tsx` | Enhanced with mode gating, localStorage, actions |
+| `useBannerVisibility.ts` | Hook for banner visibility logic |
+| `tests/e2e/*.spec.ts` | Playwright E2E, a11y tests |
 
 ---
 
@@ -64,7 +63,7 @@ Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE
 | Agent | Role |
 |-------|------|
 | **@frankie** | Repo manager — GitHub gateway, PR workflow, HANDOFF.md |
-| **@stackier** | Frontend implementation — Sidebar gating, visibility logic |
+| **@stackier** | Frontend implementation — Banner component, hooks, tests |
 | **@protecor-kiar** | Security review — Secret redaction, feature flags, auth |
 | **@jonin-le** | Skill governance — `frontend-testing-patterns`, `popular-web-designs` |
 
@@ -82,8 +81,8 @@ Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE
 
 ## 📁 Current Branch State
 
-- **Branch:** `ux/simple-mode-phase1-sidebar`
-- **Base:** `release/v3.8.55` (SHA `be8c3b3c65ac37368fe2b7466256a6a5e6338904`)
+- **Branch:** `ux/simple-mode-phase1-banners`
+- **Base:** `release/v3.8.55` (SHA `61ea2be701161e8a55f5400bc4be8f7b7605691e`)
 - **Commits:** 1 (this HANDOFF.md)
 
 ---
@@ -95,13 +94,13 @@ Complete **Sidebar Section Visibility Gating** per `docs/ux-simplification/PHASE
 3. **@stackier** implements components to pass tests (GREEN phase)
 4. **@protecor-kiar** reviews implementations
 5. **@frankie** merges to `release/v3.8.55`
-6. **Phase 4** begins: `ux/simple-mode-phase1-banners`
+6. **Phase 5** begins: Local Model (Routing Hint Cache)
 
 ---
 
 ## 📝 Notes
 
-- Phase 2 already created `src/lib/sidebarVisibility.ts` (basic hook)
-- Phase 3 enhances it with full section gating logic
-- Design doc Section 2.3 defines `SIDEBAR_SECTIONS` (10 sections)
-- Design doc Section 5 defines `ESSENTIALS_SIMPLE_ITEMS` and `PROTECTED_SIDEBAR_ITEM_IDS`
+- Phase 3 already created `src/components/AdvancedBanner.tsx` (basic)
+- Phase 4 enhances it with full mode gating, localStorage, actions
+- Design doc Section 13 defines banner behavior
+- Existing `AdvancedBanner.tsx` from Phase 3 should be enhanced
