@@ -345,12 +345,22 @@ export const PROVIDER_PROFILES = {
   },
 };
 
-// Default rate limit values for API Key providers (auto-enabled safety net)
-// These are intentionally HIGH — they won't restrict normal usage.
-// Real limits are learned from provider response headers.
+// Default rate limit values for API Key providers (auto-enabled safety net).
+// Real limits are learned from provider response headers (see rateLimitManager.updateFromHeaders).
+// A learned spacing that is slower than this floor still wins. Headroom relaxation (#9763)
+// will not go below the floor. The 60 RPM reservoir and concurrency cap are unchanged.
+//
+// minTimeBetweenRequests was 200, then 350 in #2903 (bundled with a RAM reduction:
+// fewer Bottleneck jobs queued at once). On a warm 200ms upstream that 350ms
+// start-to-start gap added ~130ms before the socket (docs/ux-simplification/PHASE1 §4.2).
+// 100ms is the aggressive resilience profile's gap and the floor already asserted
+// by tests/unit/thundering-herd.test.ts. Sequential calls slower than 100ms no
+// longer queue. Restore the previous pad with
+// resilienceSettings.requestQueue.minTimeBetweenRequestsMs = 350.
+export const LEGACY_MIN_TIME_BETWEEN_REQUESTS_MS = 350;
 export const DEFAULT_API_LIMITS = {
   requestsPerMinute: 60, // 60 RPM (reduced from 100 — saves Bottleneck queue memory)
-  minTimeBetweenRequests: 350, // 350ms minimum gap (increased from 200)
+  minTimeBetweenRequests: 100,
   concurrentRequests: 6, // Max 6 parallel per provider (reduced from 10)
 };
 
