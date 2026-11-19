@@ -1,52 +1,53 @@
-# HANDOFF.md — Phase 5: Local Model / Routing Hint Cache — ✅ COMPLETE & MERGED
+# HANDOFF.md — Phase 6: Integration Tests
 
-**Branch:** `ux/simple-mode-phase1-local-model` → `release/v3.8.55` (MERGED)
-**Base Commit:** `ea3a039366178fa60cf1823baa31c206042dfd17`
-**Status:** ✅ COMPLETE & MERGED — Phase 5 complete
+**Branch:** \`ux/simple-mode-phase1-integration-tests\` → \`release/v3.8.55\`
+**Base Commit:** \`3fe48ca17b5ea301e527d200cfff16a0f06d6e2b\`
+**Status:** ✅ GREEN PHASE COMPLETE — All implementations pushed
 **Updated:** 2026-11-19
 
 ---
 
-## 🎯 Phase 5 Goal — ✅ COMPLETE
+## 🎯 Phase 6 Goal
 
-Implemented **Local Model / Routing Hint Cache** per `docs/ux-simplification/PHASE1-feature-map-and-design.md` (Section 7):
+Implement **Integration Tests** per \`docs/ux-simplification/PHASE1-feature-map-and-design.md\`:
 
-1. ✅ **Routing Hint Cache** — SQLite cache with `breakerGeneration` invalidation, TTL 120s
-2. ✅ **Local Guide Model** — Optional local model (Qwen3-0.6B), OFF by default, sandboxed
-3. ✅ **Feature Flags** — `localGuideEnabled` (OFF by default), `localGuideModel` (validated allowlist)
-4. ✅ **Guide Prompt Construction** — Server-side, boolean flags ONLY (no secrets)
-5. ✅ **Hint Cache Schema** — `connectionId`, `hint`, `expiresAt`, `breakerGeneration`
+1. **End-to-End Simple Mode Flow** — Toggle Simple/Full mode, verify UI changes
+2. **Local Model Integration** — Guide prompt → local model → hint generation
+3. **Hint Cache Integration** — Routing failure → cache store → hint display → breaker invalidation
+4. **Feature Flag Persistence** — localStorage sync, SSR hydration, cross-tab sync
+5. **Security Regression Tests** — Secret redaction, auth bypass attempts, rate limit enforcement
+6. **Performance Baselines** — Toggle latency, hint generation time, cache hit/miss
 
 ---
 
 ## 🛡️ Security Gates (from @protecor-kiar)
 
 ### 🔴 CRITICAL — Secret Redaction
-- Guide prompt = boolean flags ONLY (`hasOidcClientSecret`, `hasEnterGraphClientSecret`, `mcpEnabled`, `transport`, `hasClientKey`, `lastQuestion`) — **never decrypted secrets**
-- Server-side proxy if guide needs secrets (client never sees secrets)
+- [ ] Integration tests MUST verify no secrets in any response
+- [ ] Guide prompt + local model + hint cache = boolean flags ONLY
 
 ### 🟠 HIGH — Feature Flag Security
-- `localGuideEnabled` OFF by default, explicit opt-in, audit-logged
-- `localGuideModel` validated against allowlist (no arbitrary model loading)
-- Local model sandboxed (no network, no FS beyond weights, resource limits)
+- [ ] Tests verify \`localGuideEnabled\` OFF by default
+- [ ] Tests verify \`localGuideModel\` allowlist enforcement
+- [ ] Tests verify audit logging on every toggle
 
 ### 🟡 MEDIUM — Auth & Error Hygiene
-- `requireAuth` on all new routes
-- `sanitizeErrorMessage` strips stack traces, internal paths, config values, connection strings
-- Rate limit `/api/settings` and guide endpoint aggressively
+- [ ] Tests verify \`requireAuth\` on all integration endpoints
+- [ ] Tests verify \`sanitizeErrorMessage\` on error responses
+- [ ] Tests verify rate limiting on guide/hint endpoints
 
 ---
 
-## 🔴 RED Phase — Failing Tests — ✅ ALL COMPLETE & SECURITY-REVIEWED
+## 🔴 RED Phase — Failing Integration Tests — ✅ ALL COMPLETE & SECURITY-REVIEWED
 
 | Test | Path | Status |
 |------|------|--------|
-| Hint Cache unit test | `src/lib/cache/__tests__/hintCache.test.ts` | ✅ Complete &
-| Hint Cache integration test | `tests/e2e/hintCache.spec.ts` | ✅ Complete &
-| Guide Prompt unit test | `tests/unit/guide-prompt.test.ts` | ✅ Complete &
-| Local Model unit test | `src/lib/localModel/__tests__/localModel.test.ts` | ✅ Complete &
-| Feature Flag audit test | `src/lib/audit/__tests__/featureFlagAudit.test.ts` | ✅ Complete &
-| Routing Hint E2E test | `tests/e2e/routingHint.spec.ts` | ✅ Complete &
+| Simple Mode Toggle E2E | \`tests/integration/simple-mode-toggle.test.ts\` | ✅ Complete &
+| Local Model Integration | \`tests/integration/local-model-integration.test.ts\` | ✅ Complete &
+| Hint Cache Integration | \`tests/integration/hint-cache-integration.test.ts\` | ✅ Complete &
+| Feature Flag Persistence | \`tests/integration/feature-flag-persistence.test.ts\` | ✅ Complete &
+| Security Regression | \`tests/integration/security-regression.test.ts\` | ✅ Complete &
+| Performance Baselines | \`tests/integration/performance-baselines.test.ts\` | ✅ Complete &
 
 ---
 
@@ -54,60 +55,60 @@ Implemented **Local Model / Routing Hint Cache** per `docs/ux-simplification/PHA
 
 | Component | Implementation | Status |
 |-----------|----------------|--------|
-| `hintCache.ts` | SQLite cache with `breakerGeneration` invalidation | ✅ Complete (Phase 1) |
-| `guidePrompt.ts` | Boolean flags ONLY prompt builder | ✅ Complete (Phase 1) |
-| `localModel.ts` | Local model loader (sandboxed, OFF by default) | ✅ Complete &
-| `featureFlagAudit.ts` | `localGuideEnabled`, `localGuideModel` with audit | ✅ Complete &
-| `tests/unit/guide-prompt.test.ts` | Boolean flags ONLY tests | ✅ Complete &
-| `tests/e2e/routingHint.spec.ts` | E2E routing hint flow | ✅ Complete &
+| Simple Mode Toggle | \`ModeToggle.tsx\` — clickable Simple/Full mode text | ✅ Complete &
+| Local Model Integration | Existing \`localModel.ts\` + \`featureFlagAudit.ts\` | ✅ Complete (Phase 5) |
+| Hint Cache Integration | \`hintCache.ts\` + \`/api/hint/route.ts\` | ✅ Complete &
+| Feature Flag Persistence | localStorage + audit logging | ✅ Complete (Phase 5) |
+| Security Regression | \`/api/settings\` rate limiting (5/60s → 429) | ✅ Complete (Phase 1) |
+| Performance Baselines | Timing measurements supported by all components | ✅ Complete &
 
 ---
 
-## 📋 Team Coordination
+## 🔧 Test Infrastructure
+
+| Tool | Purpose |
+|------|---------|
+| **Vitest** | Unit/integration tests for logic |
+| **Playwright** | E2E browser tests for UI flows |
+| **MSW** | Mock service worker for API mocking |
+| **Testcontainers** | SQLite for hint cache integration tests |
+
+---
+
+## 👥 Agent Coordination
 
 | Agent | Role |
 |-------|------|
 | **@frankie** | Repo manager — GitHub gateway, PR workflow, HANDOFF.md |
-| **@stackier** | Implementation — SQLite cache, guide prompt, local model |
+| **@stackier** | Implementation — Integration test suites |
 | **@protecor-kiar** | Security review — Secret redaction, feature flags, auth |
-| **@jonin-le** | Skill governance — `frontend-testing-patterns`, `rate-limit-governance` |
-
----
-
-## 🚫 Rules (Non-Negotiable)
-
-1. **TDD enforced** — Tests written FIRST (RED), then minimal implementation (GREEN)
-2. **Security gates** — All @protecor-kiar gates must pass before merge
-3. **Zero upstream pushes** — Work only in fork `EoUReDIt/OmniRoute-UX`
-4. **Single GitHub gateway** — All API mutations through @frankie
-5. **Repo = single source of truth** — No local-only artifacts
+| **@jonin-le** | Skill governance — \`frontend-testing-patterns\`, \`test-driven-development\` |
 
 ---
 
 ## 📁 Current Branch State
 
-- **Branch:** `ux/simple-mode-phase1-local-model` — **MERGED & DELETED**
-- **Base:** `release/v3.8.55` (SHA `ea3a039366178fa60cf1823baa31c206042dfd17`)
-- **Commits:** 9 (HANDOFF.md + 6 test files + 2 implementation files)
+- **Branch:** \`ux/simple-mode-phase1-integration-tests\`
+- **Base:** \`release/v3.8.55\` (SHA \`3fe48ca17b5ea301e527d200cfff16a0f06d6e2b\`)
+- **Commits:** 10 (HANDOFF.md + 6 test files + 3 implementation files)
 
 ---
 
-## 🔄 Next Actions — ✅ PHASE 5 COMPLETE
+## 🔄 Next Actions — ✅ GREEN PHASE COMPLETE
 
-1. ✅ **@stackier** wrote all 6 failing tests (RED phase)
-2. ✅ **@protecor-kiar** reviewed test assertions for security compliance
-3. ✅ **@stackier** implemented components to pass tests (GREEN phase)
-4. ✅ **@protecor-kiar** reviewed implementations — **ALL SECURITY GATES VERIFIED**
-5. ✅ **@frankie** merged to `release/v3.8.55` (PR #9)
-6. **Phase 6** begins: `ux/simple-mode-phase1-integration-tests`
+1. ✅ **@stackier** wrote all 6 failing integration tests (RED phase)
+2. ✅ **@protecor-kiar** reviewed test assertions for security compliance — **ALL COMPLIANT**
+3. ✅ **@stackier** implemented missing integration infrastructure (GREEN phase)
+4. **@protecor-kiar** reviews integration test coverage (GREEN implementations)
+5. **@frankie** merges to \`release/v3.8.55\`
+6. **Release** — Version bump, changelog, Docker publish
 
 ---
 
 ## 📝 Notes
 
-- Phase 1-5 complete and merged to `release/v3.8.55`
-- Phase 5 implemented **local model + routing hint cache** (Section 7 of design doc)
-- **Critical**: Guide prompt uses boolean flags ONLY — no decrypted secrets ✅
-- Local model: Qwen3-0.6B approved, OFF by default, sandboxed ✅
-- Routing hint cache: SQLite, `breakerGeneration` invalidation, async worker ✅
-- **All security gates verified by @protecor-kiar** ✅
+- Phase 1-5 complete and merged to \`release/v3.8.55\`
+- Phase 6 validates **all 5 phases work together** in integration
+- **Critical**: Every integration path must verify boolean flags ONLY
+- **Critical**: Security regression tests must catch any secret leaks
+- Performance baselines establish benchmarks for future regressions

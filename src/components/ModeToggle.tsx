@@ -1,3 +1,10 @@
+/**
+ * ModeToggle Component
+ * Header Simple/Full mode toggle
+ *
+ * GREEN phase — implements the component to pass all unit & E2E tests
+ */
+
 import React, { useState, useEffect } from 'react'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 
@@ -28,7 +35,16 @@ export const ModeToggle: React.FC<ModeToggleProps> = ({ initialMode = 'full' }) 
         data-testid="mode-toggle-checkbox"
       />
       <span className="mode-display" data-testid="mode-display">
-        {mode}
+        <div
+          onClick={toggleMode}
+          role="button"
+          aria-label={mode === 'simple' ? 'Switch to full mode' : 'Switch to simple mode'}
+          style={{
+            cursor: 'pointer',
+          }}
+        >
+          {mode === 'simple' ? 'Simple mode' : 'Full mode'}
+        </div>
       </span>
     </div>
   )
