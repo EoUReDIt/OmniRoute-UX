@@ -37,7 +37,7 @@ env:
   # test installed a fake PEM on a persistent self-hosted runner and broke all
   # system TLS). Belt-and-suspenders with tests/_setup/isolateDataDir.ts.
   OMNIROUTE_SKIP_SYSTEM_TRUST: "1"
-  CI_NODE_VERSION: "24"
+  CI_NODE_VERSION: "27"
   CI_NODE_24_VERSION: "24"
   CI_NODE_26_VERSION: "26"
 
@@ -78,6 +78,24 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - name: Validate gate inventory
         continue-on-error: true
         run: npm run check:gate-manifest
@@ -155,6 +173,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -326,6 +353,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -448,6 +484,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -563,6 +608,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -649,6 +703,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - name: markdownlint (docs + root, advisory)
         run: npx --yes markdownlint-cli2 "docs/**/*.md" "*.md" "!docs/i18n" "!docs/research" || true
       - name: Vale prose lint (Microsoft style, advisory)
@@ -696,6 +759,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -767,6 +839,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -835,6 +916,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - name: Fetch base branch
         run: git fetch --no-tags origin "${GITHUB_BASE_REF}"
       # Plan 2026-11-13 (derived files are written at release): translation mirrors, the
@@ -904,6 +994,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -969,6 +1068,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1071,6 +1179,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1162,6 +1279,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/prepare-unit-storage
         with:
           cache: ${{ github.event_name == 'pull_request' }}
@@ -1227,6 +1353,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1272,6 +1407,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1344,6 +1488,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1615,6 +1768,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1699,6 +1861,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1727,6 +1898,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1761,6 +1941,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1796,6 +1985,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - uses: ./.github/actions/npm-ci-retry
         with:
           # PR acceleration is not release-candidate provenance.
@@ -1845,6 +2043,15 @@ jobs:
         with:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
+      - name: Check Node.js version (minimum 21)
+        run: |
+          NODE_VERSION=$(node --version | sed 's/v//')
+          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          if [ "$MAJOR_VERSION" -lt 21 ]; then
+            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
+            exit 1
+          fi
+          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - name: Evaluate exact-candidate admission
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
