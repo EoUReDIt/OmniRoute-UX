@@ -32,6 +32,7 @@ import {
   verifyManagementPassword,
 } from "@/lib/auth/managementPassword";
 import { requireManagementAuth } from "@/lib/api/requireManagementAuth";
+import { rateLimitMiddleware } from "@/lib/rate-limit/rateLimiter";
 import { requireOperatorCredential } from "@/lib/api/operatorCredential";
 import { isPaidModelTarget } from "@/shared/utils/freeModels";
 import { getAuditRequestContext, logAuditEvent } from "@/lib/compliance";
@@ -190,6 +191,10 @@ export async function GET(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
+  // Rate limiting: per-user (10/min) + per-IP (5/min)
+  const { response: rateLimitResponse, headers: rateLimitHeaders } = await rateLimitMiddleware(request);
+  if (rateLimitResponse) return rateLimitResponse;
+
   try {
     const settings = await getSettings();
     const settingsRevision = await getSettingsRevision();
@@ -197,8 +202,20 @@ export async function GET(request: Request) {
       password,
       [SESSIONS_VALID_AFTER_SETTING]: _sessionsValidAfter,
       [REVOKED_SESSIONS_SETTING]: _revokedSessions,
+      oidcClientSecret,
+      entraGraphClientSecret,
       ...safeSettings
     } = settings;
+
+    // Create response settings with boolean flags only — never decrypted secrets
+    const responseSettings = {
+      ...safeSettings,
+      oidcClientSecretConfigured: Boolean(oidcClientSecret),
+      entraGraphClientSecretConfigured: Boolean(entraGraphClientSecret),
+    };
+    // Ensure actual secrets are never included in response
+    delete responseSettings.oidcClientSecret;
+    delete responseSettings.entraGraphClientSecret;
 
     const runtimePorts = getRuntimePorts();
     const { CLOUD_URL } = await import("@/lib/cloudSync");
@@ -218,7 +235,7 @@ export async function GET(request: Request) {
 
     return NextResponse.json(
       {
-        ...safeSettings,
+        ...responseSettings,
         settingsRevision,
         hasPassword: hasManagementPasswordConfigured(settings),
         runtimePorts,
@@ -240,7 +257,7 @@ export async function GET(request: Request) {
           ? { cliproxyapi_model_mapping: cliproxyapiModelMapping }
           : {}),
       },
-      { headers: settingsResponseHeaders(settingsRevision) }
+      { headers: { ...settingsResponseHeaders(settingsRevision), ...rateLimitHeaders } }
     );
   } catch (error) {
     console.log("Error getting settings:", error);
