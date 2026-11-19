@@ -1,11 +1,11 @@
 /**
- * E2E Advanced Banner Flow Tests
+ * Advanced Banner E2E Flow Tests
  * Tests the advanced banner end-to-end flow
  * 
  * RED phase — these tests are expected to FAIL until implementation is complete
  */
 
-import { test, expect, beforeEach } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 
 beforeEach(async ({ page }) => {
   // Clear localStorage before each test
@@ -49,4 +49,15 @@ test('clicks "Open in Full View" button', async ({ page }) => {
   
   // Should navigate to home/full view
   await page.waitForLoadState('networkidle')
+})
+
+test('banner hides when simple mode is active', async ({ page }) => {
+  // Set mode to simple
+  await page.evaluate(() => {
+    localStorage.setItem('simpleMode', 'simple')
+  })
+  await page.reload()
+  
+  // Banner should not be visible in simple mode
+  await page.waitForSelector('text=This is an advanced screen', { state: 'hidden', timeout: 2000 })
 })
