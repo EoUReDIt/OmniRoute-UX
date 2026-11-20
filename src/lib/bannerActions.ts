@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Banner Actions
  * Handles banner action button interactions
@@ -7,14 +6,13 @@
  */
 
 import React from 'react'
-import { useLocalStorage } from '@/hooks/useLocalStorage'
 
-/** 
+/**
  * Action to navigate back to home
  * Clears any banner-related state and navigates to root
  */
-export function useBackToHomeAction = (): () => void => {
-  const [simpleMode, setSimpleMode] = React.useState<'simple' | 'full'>('full')
+export const useBackToHomeAction = (): () => void => {
+  const [_simpleMode, setSimpleMode] = React.useState<'simple' | 'full'>('full')
 
   return () => {
     // Reset mode to full on back navigation
@@ -24,12 +22,12 @@ export function useBackToHomeAction = (): () => void => {
   }
 }
 
-/** 
+/**
  * Action to open banner in full view
  * Stores "original" in localStorage and navigates to home
  */
-export function useOpenInFullViewAction = (): () => void => {
-  const [simpleMode, setSimpleMode] = React.useState<'simple' | 'full'>('full')
+export const useOpenInFullViewAction = (): () => void => {
+  const [_simpleMode, setSimpleMode] = React.useState<'simple' | 'full'>('full')
 
   return () => {
     // Store "original" in localStorage
@@ -41,16 +39,17 @@ export function useOpenInFullViewAction = (): () => void => {
   }
 }
 
-/** 
+/**
  * Toggle banner visibility mode
  * Switches between simple and full mode
  */
-export function useToggleModeAction = (): () => void => {
-  const [simpleMode, setSimpleMode] = React.useState<'simple' | 'full'>('full')
+export const useToggleModeAction = (): () => void => {
+  const [_simpleMode, setSimpleMode] = React.useState<'simple' | 'full'>('full')
 
   return () => {
-    setSimpleMode(simpleMode === 'simple' ? 'full' : 'simple')
+    setSimpleMode(_simpleMode === 'simple' ? 'full' : 'simple')
   }
 }
 
-export default { useBackToHomeAction, useOpenInFullViewAction, useToggleModeAction }
+const bannerActions = { useBackToHomeAction, useOpenInFullViewAction, useToggleModeAction }
+export default bannerActions
