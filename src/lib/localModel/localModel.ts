@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Local Model Inference
  * Qwen3-0.6B sandboxed local LLM inference
@@ -13,7 +12,6 @@
  */
 
 import { useLocalStorage } from '@/hooks/useLocalStorage'
-import { useSidebarVisibility } from '@/lib/sidebarVisibility'
 
 // Model configuration constants
 const MODEL_ID = 'qwen3-0.6B'
@@ -57,14 +55,14 @@ interface GenerationResult {
 
 // Cache for model worker to avoid re-initialization
 let modelWorker: Worker | null = null
-let modelReady = false
+let _modelReady = false
 let modelInitializationPromise: Promise<void> | null = null
 
 /**
  * Checks if local guide model is enabled
  * Defaults to false (OFF by default per security gates)
  */
-export function useLocalGuideEnabled = (): boolean => {
+export const useLocalGuideEnabled = (): boolean => {
   const [enabled] = useLocalStorage<'boolean'>('localGuideEnabled', false)
   return enabled
 }
@@ -72,7 +70,7 @@ export function useLocalGuideEnabled = (): boolean => {
 /**
  * Checks if local guide model is in allowlist
  */
-export function useLocalGuideModelAllowed = (modelName: ModelName): boolean => {
+export const useLocalGuideModelAllowed = (modelName: ModelName): boolean => {
   // Check against hardcoded allowlist
   return VALID_MODELS.includes(modelName)
 }
@@ -142,7 +140,7 @@ export function loadLocalModel(): Promise<ModelState> {
  * @returns Generation result with text or error
  */
 export async function generateHint(
-  question: string,
+  _question: string,
   inputs: PromptInputs
 ): Promise<GenerationResult> {
   // Security check: Never include raw secret values
@@ -162,7 +160,9 @@ export async function generateHint(
   }
 
   // Check if model is in allowlist
-  if (!useLocalGuideModelAllowed(MODEL_ID)) {
+  // Check if model is in allowlist (inline — hooks can't be called outside React components)
+  const _isAllowed = VALID_MODELS.includes(MODEL_ID)
+  if (!_isAllowed) {
     return {
       success: false,
       text: '',
@@ -172,8 +172,9 @@ export async function generateHint(
     }
   }
 
-  // Check if model is enabled via flag
-  if (!useLocalGuideEnabled()) {
+  // Check if model is enabled via flag (inline — hooks can't be called outside React components)
+  const _isEnabled = localStorage.getItem('localGuideEnabled') !== 'false'
+  if (!_isEnabled) {
     return {
       success: false,
       text: '',
@@ -256,10 +257,12 @@ export function unloadLocalModel(): void {
 // Export types for use in other modules
 export type { ModelName, PromptInputs, GenerationResult, ModelState }
 
-export default {
+const localModel = {
   loadLocalModel,
   generateHint,
   unloadLocalModel,
   useLocalGuideEnabled,
   useLocalGuideModelAllowed,
 }
+
+export default localModel
