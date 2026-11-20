@@ -6,7 +6,6 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { request } from '@playwright/test'
 
 describe('Security Regression Integration Tests', () => {
   test.beforeEach(async ({ page }) => {
@@ -40,7 +39,7 @@ describe('Security Regression Integration Tests', () => {
   })
 })
 
-test('rate limits enforced on guide endpoint', async ({ page, request }) => {
+test('rate limits enforced on guide endpoint', async ({ request }) => {
   // Test rate limiting on guide-related endpoints
   const responses = []
   
