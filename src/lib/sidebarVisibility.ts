@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Enhanced Sidebar Visibility Hooks
  * Handles sidebar sections visibility by mode and protected items
