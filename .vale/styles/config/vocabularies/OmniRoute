@@ -1,0 +1,20 @@
+# OmniRoute custom vocabulary
+# Custom words/phrases not in default Vale dictionary
+
+# Project-specific terms
+OmniRoute
+OmniProxy
+OmniModel
+Qwen3
+Qwen2
+llama3
+gemma3
+streamable
+stdio
+localGuideEnabled
+localGuideModel
+dashboardUiMode
+simpleMode
+fullMode
+breakerGeneration
+hintCache
