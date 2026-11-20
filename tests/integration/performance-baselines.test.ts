@@ -5,7 +5,7 @@
  * RED phase — these tests are expected to FAIL until implementation is complete
  */
 
-import { test, expect, slow } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 
 test('simple mode toggle performance', async ({ page }) => {
   await page.goto('/')
