@@ -635,11 +635,11 @@ jobs:
         run: |
           mkdir -p .vale/styles/config
           cat > .vale/config.yml << 'EOF'
-stylespath:
-  - styles
-vocabularies:
-  - OmniRoute
-EOF
+          stylespath:
+            - styles
+          vocabularies:
+            - OmniRoute
+          EOF
       # Plan 2026-11-13 (derived numbers are written at release): on a feature PR the counts gate
       # judges only the managed numbers the PR itself edited (diff against BASE_SHA, or the merge
       # commit's first parent when the base moved), never a base that is behind the live code by
