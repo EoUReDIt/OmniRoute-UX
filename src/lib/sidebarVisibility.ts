@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * Enhanced Sidebar Visibility Hooks
  * Handles sidebar sections visibility by mode and protected items
@@ -6,26 +5,17 @@
  * GREEN phase — implements hooks for sidebar visibility gating
  */
 
-import { useEffect, useState } from 'react'
-
 type SidebarSection = 'home' | 'endpoints' | 'providers' | 'models' |
   'omniproxy' | 'analytics' | 'costs' | 'monitoring' |
   'dev-tools' | 'agentic-features' | 'other-features' | 'configuration' | 'help'
 
 type ProtectedSidebarItem = 'proxy' | 'settings-sidebar'
 
-interface SidebarVisibilityState {
-  mode: 'simple' | 'full'
-  visibleSections: SidebarSection[]
-  protectedItems: ProtectedSidebarItem[]
-  hiddenSections: SidebarSection[]
-}
-
 /**
  * Checks if advanced sidebar sections should be visible
  * Returns false in Simple mode (only essentials), true in Full mode
  */
-export function useSidebarVisibility = (): boolean => {
+export const useSidebarVisibility = (): boolean => {
   const [mode] = useLocalStorage<'simple' | 'full'>('simpleMode', 'full')
   return mode === 'full'
 }
@@ -33,7 +23,7 @@ export function useSidebarVisibility = (): boolean => {
 /**
  * Gets the current mode
  */
-export function useCurrentMode = (): 'simple' | 'full' => {
+export const useCurrentMode = (): 'simple' | 'full' => {
   const [mode] = useLocalStorage<'simple' | 'full'>('simpleMode', 'full')
   return mode
 }
@@ -43,7 +33,7 @@ export function useCurrentMode = (): 'simple' | 'full' => {
  * Simple mode: only essentials (home, endpoints, providers, models)
  * Full mode: all 10 sections
  */
-export function useSidebarSections = (): {
+export const useSidebarSections = (): {
   visible: SidebarSection[]
   hidden: SidebarSection[]
 } => {
@@ -90,7 +80,7 @@ export function useSidebarSections = (): {
  * Checks if a protected sidebar item should always be visible
  * proxy and settings-sidebar are always visible regardless of mode
  */
-export function useProtectedSidebarItems = (): ProtectedSidebarItem[] => {
+export const useProtectedSidebarItems = (): ProtectedSidebarItem[] => {
   // Protected items are always visible - no localStorage dependency
   return ['proxy', 'settings-sidebar']
 }
@@ -98,7 +88,7 @@ export function useProtectedSidebarItems = (): ProtectedSidebarItem[] => {
 /**
  * Gets the current dashboard mode
  */
-export function useDashboardMode = (): 'simple' | 'full' => {
+export const useDashboardMode = (): 'simple' | 'full' => {
   const [mode] = useLocalStorage<'simple' | 'full'>('dashboardUiMode', 'full')
   return mode
 }
