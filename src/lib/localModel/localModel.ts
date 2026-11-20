@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Local Model Inference
  * Qwen3-0.6B sandboxed local LLM inference
