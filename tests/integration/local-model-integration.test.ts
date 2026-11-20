@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach } from 'vitest'
-import { loadLocalModel, generateHint, unloadLocalModel, useLocalGuideEnabled } from '@/lib/localModel'
+import { loadLocalModel, generateHint, unloadLocalModel } from '@/lib/localModel'
 
 describe('Local Model Integration Tests', () => {
   beforeEach(() => {
