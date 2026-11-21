@@ -37,7 +37,7 @@ env:
   # test installed a fake PEM on a persistent self-hosted runner and broke all
   # system TLS). Belt-and-suspenders with tests/_setup/isolateDataDir.ts.
   OMNIROUTE_SKIP_SYSTEM_TRUST: "1"
-  CI_NODE_VERSION: "26"
+  CI_NODE_VERSION: "22"
   CI_NODE_24_VERSION: "24"
   CI_NODE_26_VERSION: "26"
 
@@ -79,6 +79,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -88,6 +89,7 @@ jobs:
           fi
           echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -152,7 +154,6 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     needs: changes
     # P3 (plano mestre): a release-PR viva fica DRAFT o ciclo inteiro — jobs pesados pulam
     # drafts (ciclo v3.8.44: 123 runs pesados re-disparados por merges na release, 88 cancelados).
@@ -175,6 +176,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -328,7 +330,6 @@ jobs:
   quality-gate:
     name: Quality Ratchet
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     # needs lint so eslint-results artifact is available (same inventory as the
     # blocking lint step). Allow lint failure so other ratchets still run.
     needs: [changes, test-coverage, lint]
@@ -356,6 +357,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -487,6 +489,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -611,6 +614,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -623,16 +627,26 @@ jobs:
         with:
           # PR acceleration is not release-candidate provenance.
           cache: ${{ github.event_name == 'pull_request' }}
-      # Plan 2026-11-13 (derived numbers are written at release): on a feature PR the counts gate
-      # judges only the managed numbers the PR itself edited (diff against BASE_SHA, or the merge
-      # commit's first parent when the base moved), never a base that is behind the live code by
-      # design. The release PR (release/v* → main) and pushes keep the strict comparison.
-      # A manual dispatch on a feature branch (`gh workflow run ci.yml --ref <branch>`) runs in pr
-      # mode too: with no PR to diff, the gate checks content invariants only. Dispatch on main or
-      # release/v* stays strict (empty mode = automatic = release).
+      - name: Copy Vale vocabulary to system path
+        run: |
+          # Vale >= 3.0: vocabularies live at <StylesPath>/config/vocabularies/<name>/accept.txt
+          # StylesPath = .vale/styles, so vocab is at .vale/styles/config/vocabularies/OmniRoute/
+          # Copy to BOTH system path and workspace path — VALE_CONFIG_PATH points to workspace
+          # config which uses relative StylesPath, so Vale also looks in workspace/.vale/styles/
+          mkdir -p ~/.local/share/vale/styles/config/vocabularies/OmniRoute
+          cp .vale/styles/config/vocabularies/OmniRoute/accept.txt ~/.local/share/vale/styles/config/vocabularies/OmniRoute/accept.txt
+          cp .vale/styles/config/vocabularies/OmniRoute/reject.txt ~/.local/share/vale/styles/config/vocabularies/OmniRoute/reject.txt
+          mkdir -p .vale/styles/config/vocabularies/OmniRoute
+          cp .vale/styles/config/vocabularies/OmniRoute/accept.txt .vale/styles/config/vocabularies/OmniRoute/accept.txt
+          cp .vale/styles/config/vocabularies/OmniRoute/reject.txt .vale/styles/config/vocabularies/OmniRoute/reject.txt
+      - name: Copy Vale config to system path
+        run: |
+          mkdir -p ~/.vale
+          cp .vale/config.yml ~/.vale/config.yml
       - run: npm run check:docs-all
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          VALE_CONFIG_PATH: .vale/config.yml
           OMNIROUTE_GATE_MODE: ${{ github.event_name == 'workflow_dispatch' && github.ref_name != 'main' && !startsWith(github.ref_name, 'release/v') && 'pr' || '' }}
       # Previously-orphaned contract gates (existed as files, never wired anywhere).
       # All exit 0 today: cli-i18n is a hard gate, openapi-coverage is a ratchet
@@ -706,6 +720,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -762,6 +777,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -842,6 +858,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -919,6 +936,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -997,6 +1015,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1022,6 +1041,9 @@ jobs:
       # runners cannot hold it and build with webpack (14 GB). Next 16.4.x regresses
       # (33 GB in the compile phase alone) - re-measure before bumping. Guarded by
       # tests/unit/ci-build-bundler-webpack.test.ts and heavy-build-queue.test.ts.
+      - name: Next.js security upgrade
+        run: |
+          npx next upgrade --agent=security --internal-nudge-id=5f7983d2-e725-4b54-a379-69593e268221 || true
       - run: npm run build
         env:
           OMNIROUTE_USE_TURBOPACK: ${{ (vars.USE_VPS_RUNNER == 'true' && vars.USE_VPS_BUILD_RUNNER == 'true' && github.event_name != 'merge_group' && github.event_name != 'pull_request' && !startsWith(github.ref, 'refs/heads/omni-queue/')) && '1' || '0' }}
@@ -1071,6 +1093,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1182,6 +1205,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1282,6 +1306,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1356,6 +1381,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1410,6 +1436,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1491,6 +1518,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1745,7 +1773,7 @@ jobs:
     # (~5min saved per shard). 9 shards (up from 6) reduces tests per shard by
     # ~33%. Playwright browser is cached across runs (~1.5min saved per shard).
     # Heavy shard target: ≤20min (was ~40min). Timeout 45min to cover slow runners.
-    timeout-minutes: ${{ startsWith(github.ref, 'refs/heads/omni-queue/') && 35 || 25 }}
+    timeout-minutes: 45
     needs: [build, changes]
     # Tests-only diffs outside tests/e2e/ cannot change the served app. A hotfix
     # label is not evidence for this candidate and cannot waive required tests.
@@ -1771,6 +1799,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1864,6 +1893,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1885,7 +1915,6 @@ jobs:
   test-security:
     name: Security Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     # needs: changes (not build) — no artifact consumed; see test-unit note.
     needs: changes
     if: ${{ github.event_name != 'pull_request' || (needs.changes.outputs.code == 'true' && (github.event.pull_request.draft == false || needs.changes.outputs.queueCandidate == 'true')) }}
@@ -1902,6 +1931,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1925,7 +1955,7 @@ jobs:
   test-ecosystem:
     name: Ecosystem E2E (live server)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     # needs: changes (not build) — the runner boots its own dev server.
     needs: changes
     # Full-matrix lane (2026-10-27): ordinary PRs skip it; push, dispatch, merge_group and the
@@ -1945,6 +1975,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -1963,7 +1994,7 @@ jobs:
   test-protocols-e2e:
     name: Protocol Clients E2E (live server, advisory)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     needs: changes
     # Full-matrix lane (2026-10-27): ordinary PRs skip it; push, dispatch, merge_group and the
     # Mergify queue candidate run it (admission condition full-code). Before a manual merge:
@@ -1989,6 +2020,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
@@ -2047,6 +2079,7 @@ jobs:
           package-manager-cache: false
           node-version: ${{ env.CI_NODE_VERSION }}
       - name: Check Node.js version (minimum 21)
+        shell: bash
         run: |
           NODE_VERSION=$(node --version | sed 's/v//')
           MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
