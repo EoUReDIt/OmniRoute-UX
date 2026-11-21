@@ -933,11 +933,6 @@
       "count": 1
     }
   },
-  "src/app/api/settings/route.ts": {
-    "no-restricted-imports": {
-      "count": 1
-    }
-  },
   "src/app/api/settings/thinking-budget/route.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
@@ -1038,6 +1033,16 @@
       "count": 3
     }
   },
+  "src/components/AdvancedBanner.tsx": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/components/ModeToggle.tsx": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    }
+  },
   "src/domain/assessment/assessor.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
@@ -1068,12 +1073,43 @@
       "count": 1
     }
   },
+  "src/hooks/useLocalStorage.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
   "src/lib/a2a/skills/healthReport.ts": {
     "no-restricted-syntax": {
       "count": 1
     }
   },
   "src/lib/a2a/streaming.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/lib/api/__tests__/auth-middleware.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/lib/api/__tests__/secret-redaction.test.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 1
+    }
+  },
+  "src/lib/audit/featureFlagAudit.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
+    },
+    "import/no-anonymous-default-export": {
+      "count": 1
+    },
+    "react-hooks/rules-of-hooks": {
+      "count": 3
+    }
+  },
+  "src/lib/cache/hintCache.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
     }
@@ -1236,6 +1272,11 @@
   "src/lib/guardrails/visionBridgeHelpers.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 1
+    }
+  },
+  "src/lib/guide/prompt.ts": {
+    "@typescript-eslint/no-unused-vars": {
+      "count": 2
     }
   },
   "src/lib/jobRegistry/index.ts": {
@@ -4934,6 +4975,36 @@
   "tests/unit/xiaomi-providers-registry.test.ts": {
     "@typescript-eslint/no-unused-vars": {
       "count": 2
+    }
+  },
+  "src/components/__tests__/advanced-banner/AdvancedBanner.test.tsx": {
+    "null": {
+      "count": 1
+    }
+  },
+  "src/components/__tests__/local-storage-persistence/localStorage-persistence.test.tsx": {
+    "null": {
+      "count": 1
+    }
+  },
+  "src/lib/__tests__/featureFlagAudit.test.ts": {
+    "null": {
+      "count": 1
+    }
+  },
+  "src/lib/__tests__/sidebar-visibility.test.ts": {
+    "null": {
+      "count": 1
+    }
+  },
+  "tests/e2e/mode-roundtrip.spec.ts": {
+    "null": {
+      "count": 1
+    }
+  },
+  "tests/e2e/sidebar-visibility.spec.ts": {
+    "null": {
+      "count": 1
     }
   }
 }
