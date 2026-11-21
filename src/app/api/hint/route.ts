@@ -21,70 +21,106 @@ interface HintBody {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  // 1. Auth gate
-  const authError = await requireManagementAuth(request)
-  if (authError) return authError
-
-  // 2. Rate limiting
-  const ipRateLimiter = new RateLimiter({ windowMs: 60_000, max: 10, keyPrefix: 'hint-ip' })
-  const rateLimitCheck = await ipRateLimiter.check(request)
-  if (rateLimitCheck.exceeded) {
-    return new Response(
-      JSON.stringify({ error: 'Rate limit exceeded', retryAfter: rateLimitCheck.retryAfter }),
-      { status: 429, headers: { 'Retry-After': String(rateLimitCheck.retryAfter) } }
-    )
-  }
-
-  // 3. Parse body
-  let body: HintBody
   try {
-    body = (await request.json()) as HintBody
-  } catch {
-    return new Response(
-      JSON.stringify({ error: 'Invalid JSON body' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
+    // 1. Auth gate
+    const authError = await requireManagementAuth(request)
+    if (authError) return authError
 
-  if (!body.connectionId || !body.hint) {
-    return new Response(
-      JSON.stringify({ error: 'connectionId and hint are required' }),
-      { status: 400, headers: { 'Content-Type': 'application/json' } }
-    )
-  }
+    // 2. Rate limiting
+    const ipRateLimiter = new RateLimiter({ windowMs: 60_000, max: 10, keyPrefix: 'hint-ip' })
+    const rateLimitCheck = await ipRateLimiter.check(request)
+    if (rateLimitCheck.exceeded) {
+      return new Response(
+        JSON.stringify({ error: 'Rate limit exceeded', retryAfter: rateLimitCheck.retryAfter }),
+        { status: 429, headers: { 'Retry-After': String(rateLimitCheck.retryAfter) } }
+      )
+    }
 
-  // 3. Handle based on operation type
-  if (body.hint.startsWith('STORE:')) {
-    // Store hint value
-    const actualValue = body.hint.substring(6)
-    const success = await storeHint(body.connectionId, actualValue, body.generation ?? getBreakerGeneration())
+    // 3. Parse body
+    let body: HintBody
+    try {
+      body = (await request.json()) as HintBody
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid JSON body' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (!body.connectionId || !body.hint) {
+      return new Response(
+        JSON.stringify({ error: 'connectionId and hint are required' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // 4. Handle based on operation type
+    if (body.hint.startsWith('STORE:')) {
+      // Store hint value
+      const actualValue = body.hint.substring(6)
+      const success = await storeHint(body.connectionId, actualValue, body.generation ?? getBreakerGeneration())
+      return new Response(
+        JSON.stringify({ success, value: actualValue }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    } else if (body.hint.startsWith('GET:')) {
+      // Get hint value
+      const testId = body.hint.substring(4)
+      const value = getHint(testId, body.generation ?? getBreakerGeneration())
+      return new Response(
+        JSON.stringify({ success: value !== null, value }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    } else if (body.hint.startsWith('INCREMENT')) {
+      // Increment breaker generation
+      const newGen = incrementBreakerGeneration()
+      return new Response(
+        JSON.stringify({ success: true, newGeneration: newGen }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    } else {
+      // Default: store the hint
+      const success = await storeHint(body.connectionId, body.hint, body.generation ?? getBreakerGeneration())
+      return new Response(
+        JSON.stringify({ success, value: body.hint }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+  } catch (error) {
     return new Response(
-      JSON.stringify({ success, value: actualValue }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  } else if (body.hint.startsWith('GET:')) {
-    // Get hint value
-    const testId = body.hint.substring(4)
-    const value = getHint(testId, body.generation ?? getBreakerGeneration())
-    return new Response(
-      JSON.stringify({ success: value !== null, value }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  } else if (body.hint.startsWith('INCREMENT')) {
-    // Increment breaker generation
-    const newGen = incrementBreakerGeneration()
-    return new Response(
-      JSON.stringify({ success: true, newGeneration: newGen }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    )
-  } else {
-    // Default: store the hint
-    const success = await storeHint(body.connectionId, body.hint, body.generation ?? getBreakerGeneration())
-    return new Response(
-      JSON.stringify({ success, value: body.hint }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: 'Internal server error', message: error instanceof Error ? error.message : 'Unknown error' }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
   }
+}
+
+// Method not allowed for unsupported HTTP methods
+export async function GET(): Promise<Response> {
+  return new Response(
+    JSON.stringify({ error: 'Method not allowed. Use POST.' }),
+    { status: 405, headers: { 'Content-Type': 'application/json', 'Allow': 'POST' } }
+  )
+}
+
+export async function PUT(): Promise<Response> {
+  return new Response(
+    JSON.stringify({ error: 'Method not allowed. Use POST.' }),
+    { status: 405, headers: { 'Content-Type': 'application/json', 'Allow': 'POST' } }
+  )
+}
+
+export async function DELETE(): Promise<Response> {
+  return new Response(
+    JSON.stringify({ error: 'Method not allowed. Use POST.' }),
+    { status: 405, headers: { 'Content-Type': 'application/json', 'Allow': 'POST' } }
+  )
+}
+
+export async function PATCH(): Promise<Response> {
+  return new Response(
+    JSON.stringify({ error: 'Method not allowed. Use POST.' }),
+    { status: 405, headers: { 'Content-Type': 'application/json', 'Allow': 'POST' } }
+  )
 }
 
 export { storeHint, getHint, incrementBreakerGeneration, getBreakerGeneration }
