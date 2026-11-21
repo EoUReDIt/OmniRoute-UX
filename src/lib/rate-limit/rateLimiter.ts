@@ -8,7 +8,7 @@
  * - 429 with Retry-After header on limit exceeded
  */
 
-import { getDbInstance } from "@/lib/db/client";
+import { getDbInstance } from "@/lib/db/core";
 
 interface RateLimitRecord {
   count: number;
@@ -22,7 +22,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-class RateLimiter {
+export class RateLimiter {
   private windowMs: number;
   private max: number;
   private keyPrefix: string;
@@ -70,7 +70,7 @@ class RateLimiter {
     `).get(this.getKey(identifier)) as RateLimitRecord | undefined;
 
     let count = 1;
-    let resetAt = resetAt;
+    let resetAtVal = resetAt;
 
     if (row) {
       if (now < row.resetAt) {
@@ -79,15 +79,15 @@ class RateLimiter {
         // Window expired, reset
         count = 1;
       }
-      resetAt = row.resetAt;
+      resetAtVal = row.resetAt;
     }
 
     if (count > this.max) {
-      const retryAfter = Math.ceil((row?.resetAt || resetAt - now) / 1000);
+      const retryAfter = Math.ceil((row?.resetAt || resetAtVal - now) / 1000);
       return {
         allowed: false,
         remaining: 0,
-        resetAt: row?.resetAt || resetAt,
+        resetAt: row?.resetAt || resetAtVal,
         retryAfter,
       };
     }
@@ -96,17 +96,17 @@ class RateLimiter {
     if (row) {
       db.prepare(`
         UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
-      `).run(count, resetAt, this.getKey(identifier));
+      `).run(count, resetAtVal, this.getKey(identifier));
     } else {
       db.prepare(`
         INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
-      `).run(this.getKey(identifier), count, resetAt);
+      `).run(this.getKey(identifier), count, resetAtVal);
     }
 
     return {
       allowed: true,
       remaining: Math.max(0, this.max - count),
-      resetAt,
+      resetAt: resetAtVal,
     };
   }
 }
