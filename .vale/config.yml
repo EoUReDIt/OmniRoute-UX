@@ -1,0 +1,4 @@
+StylesPath:
+  - .vale/styles
+Vocabularies:
+  - .vale/styles/config/vocabularies
