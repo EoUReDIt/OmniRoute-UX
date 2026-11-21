@@ -1,0 +1,73 @@
+# osv-scanner.toml — OmniRoute vulnerability suppression configuration
+# ===========================================================================
+# Schema reference: https://google.github.io/osv-scanner/configuration/
+#
+#   [[IgnoredVulns]]
+#     id = "GHSA-..."            # required; aliases of this ID are ignored too
+#     # effectiveUntil = "YYYY-MM-DD"   # optional expiry, after which the ignore stops applying
+#     reason = "..."             # optional upstream; REQUIRED by OmniRoute policy
+#
+# Field name note: the official schema field is `effectiveUntil` (not `ignoreUntil`).
+#
+# ---------------------------------------------------------------------------
+# HOW CI USES THIS FILE (quality.yml → job "fast-gates")
+# ---------------------------------------------------------------------------
+# 1. CI installs pinned osv-scanner v2.3.8 (gh release download, linux amd64).
+# 2. `scripts/check/check-vuln-ratchet.mjs` runs:
+#      osv-scanner --format json --lockfile package-lock.json
+#    from the repo root, so this file (at repo root) applies to package-lock.json.
+# 3. The ratchet compares the measured count against
+#    metrics.vulnCount = 7 in config/quality/quality-baseline.json (all dev-only:
+#    glob 10.5.0/11.1.0/13.0.6 GHSA-3g3m-2fjr-6pw4, minimatch 9.0.9/10.2.5/10.2.6
+#    GHSA-g3hv-75wg-m249, joi 18.2.9 GHSA-4528-x5fx-h6hg; disclosed 2026-10-30).
+#    Direction: down — any measured count above 7 is a regression (exit 1).
+#
+# ---------------------------------------------------------------------------
+# STATUS: TEMPLATE — NO REAL SUPPRESSIONS PRE-POPULATED
+# ---------------------------------------------------------------------------
+# Do NOT add [[IgnoredVulns]] entries without an actual CVE observed in CI output.
+# The entries below are commented-out schema illustrations only.
+
+# [[IgnoredVulns]]
+# id = "GHSA-EXAMPLE-0000"
+# # effectiveUntil = "2027-06-30"
+# reason = "False positive: osv-scanner flags a dev-only transitive path that is never shipped; tracked in OmniRoute#NNNN, from CI run #44871748513."
+
+# [[IgnoredVulns]]
+# id = "GHSA-EXAMPLE-0001"
+# # effectiveUntil = "2027-01-15"
+# reason = "Dev-only finding: affected package exists only in devDependencies; no fix yet, bump tracked in OmniRoute#NNNN, from CI run #44871748513."
+
+# Package-level alternative for whole dev-only packages (schema illustration):
+# [[PackageOverrides]]
+# name = "dev-only-package"
+# ecosystem = "npm"
+# group = "dev"
+# ignore = true
+# reason = "Entire dev-only package excluded from vulnerability scanning."
+
+# ---------------------------------------------------------------------------
+# WHAT IS NEEDED FROM CI RUN #44871748513 OUTPUT
+# ---------------------------------------------------------------------------
+# Before adding any [[IgnoredVulns]] entry, capture from the failing CI run:
+#
+#   1. The full `osv-scanner --format json` output (job log or uploaded artifact).
+#   2. For every vulnerability: id, aliases, package name, version, ecosystem,
+#      severity, and whether it resolves under a dev/prod/optional dependency.
+#   3. Which key package each finding maps to:
+#        next@16.4.2, react@19.2.8, express@^5.2.1, jose@^6.2.10,
+#        bcryptjs@^3.0.3, ioredis@^5.10.1, axios@^1.20.0, undici@^8.11.2,
+#        ws@^8.21.3, better-sqlite3@^13.0.3 (optionalDependency),
+#        onnxruntime-node@1.30.0 (optionalDependency).
+#   4. Classification per finding: false positive / dev-only / transitive-only / fix-available.
+#        - false positive   → [[IgnoredVulns]] + reason + tracking issue
+#        - dev-only         → prefer PackageOverrides (group = "dev") or a bump; suppress only as last resort
+#        - fix-available    → bump the dependency instead of suppressing (preferred)
+#   5. Measured vulnCount and by-severity split vs baseline 7 (HIGH / MODERATE / LOW).
+#
+# Then add one [[IgnoredVulns]] entry per accepted suppression:
+#   id         = exact vulnerability id from the JSON output
+#   reason     = "CI run #44871748513 — <classification>; tracking issue OmniRoute#NNNN."
+#   effectiveUntil = date the fix lands, or a review date no more than 90 days out
+#
+# Re-check this file at every release: suppressions must not outlive their justification.

@@ -28,9 +28,6 @@ export default defineConfig({
       "tests/unit/autoCombo/**/*.test.ts",
       "tests/unit/api/**/*.spec.ts",
       "tests/unit/encryption.spec.ts",
-      "src/shared/components/**/*.test.tsx",
-      "src/shared/hooks/__tests__/**/*.test.tsx",
-      "src/app/(dashboard)/**/__tests__/**/*.test.tsx",
     ],
     exclude: ["**/node_modules/**", "**/.git/**"],
     coverage: {
