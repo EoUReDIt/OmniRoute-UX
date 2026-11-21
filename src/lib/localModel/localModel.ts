@@ -63,7 +63,7 @@ let modelInitializationPromise: Promise<void> | null = null
  * Defaults to false (OFF by default per security gates)
  */
 export const useLocalGuideEnabled = (): boolean => {
-  const [enabled] = useLocalStorage<'boolean'>('localGuideEnabled', false)
+  const [enabled] = useLocalStorage<boolean>('localGuideEnabled', false)
   return enabled
 }
 
@@ -87,8 +87,9 @@ export function loadLocalModel(): Promise<ModelState> {
 
   modelInitializationPromise = (async () => {
     try {
-      // Check if local guide model is enabled
-      if (!useLocalGuideEnabled()) {
+      // Check if local guide model is enabled (inline — hooks can't be called outside React components)
+      const _isEnabled = localStorage.getItem('localGuideEnabled') !== 'false'
+      if (!_isEnabled) {
         // Model is OFF by default - mark as not loaded
         // but don't throw - allow graceful degradation
         return {
@@ -110,7 +111,7 @@ export function loadLocalModel(): Promise<ModelState> {
       // Simulate model loading with timeout
       await new Promise(resolve => setTimeout(resolve, 2000))
 
-      modelReady = true
+      _modelReady = true
       modelWorker = null // Would be actual Worker instance
 
       return {
