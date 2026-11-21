@@ -5,7 +5,7 @@ describe('Mode Toggle Unit Tests', () => {
     localStorage.clear()
   })
 
-  it('PATCH /api/settings toggles dashboardUiMode to simple') {
+  it('PATCH /api/settings toggles dashboardUiMode to simple', async () => {
     const result = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -14,9 +14,9 @@ describe('Mode Toggle Unit Tests', () => {
     expect(result.status).toBe(200)
     const data = await result.json()
     expect(data.dashboardUiMode).toBe('simple')
-  }
+  })
 
-  it('PATCH /api/settings toggles dashboardUiMode to original') {
+  it('PATCH /api/settings toggles dashboardUiMode to original', async () => {
     const result = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -25,9 +25,9 @@ describe('Mode Toggle Unit Tests', () => {
     expect(result.status).toBe(200)
     const data = await result.json()
     expect(data.dashboardUiMode).toBe('original')
-  }
+  })
 
-  it('round-trip PATCH preserves hiddenSidebarItems') {
+  it('round-trip PATCH preserves hiddenSidebarItems', async () => {
     const result = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -35,10 +35,10 @@ describe('Mode Toggle Unit Tests', () => {
     })
     expect(result.status).toBe(200)
     const data = await result.json()
-    expect(data.hiddenSidebarItems).toContain('test-item')  // Preserved/untouched
-  }
+    expect(data.hiddenSidebarItems).toContain('test-item')
+  })
 
-  it('round-trip PATCH preserves sidebarActivePreset') {
+  it('round-trip PATCH preserves sidebarActivePreset', async () => {
     const result = await fetch('/api/settings', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -46,6 +46,6 @@ describe('Mode Toggle Unit Tests', () => {
     })
     expect(result.status).toBe(200)
     const data = await result.json()
-    expect(data.sidebarActivePreset).toBe('essentials')  // Preserved/untouched
+    expect(data.sidebarActivePreset).toBe('essentials')
   }
 })
