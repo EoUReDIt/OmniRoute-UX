@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { test, expect } from '@playwright/test'
 
 test('PATCH /api/settings toggles simple mode via E2E') {

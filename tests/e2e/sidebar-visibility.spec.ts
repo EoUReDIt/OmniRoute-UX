@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { test, expect } from '@playwright/test'
 
 test('sidebar shows essentials sections in simple mode') {

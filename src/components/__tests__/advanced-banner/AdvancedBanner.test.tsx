@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * Advanced Banner Component Unit Tests

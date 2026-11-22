@@ -623,13 +623,22 @@ jobs:
         with:
           # PR acceleration is not release-candidate provenance.
           cache: ${{ github.event_name == 'pull_request' }}
-      # Plan 2026-11-13 (derived numbers are written at release): on a feature PR the counts gate
-      # judges only the managed numbers the PR itself edited (diff against BASE_SHA, or the merge
-      # commit's first parent when the base moved), never a base that is behind the live code by
-      # design. The release PR (release/v* → main) and pushes keep the strict comparison.
-      # A manual dispatch on a feature branch (`gh workflow run ci.yml --ref <branch>`) runs in pr
-      # mode too: with no PR to diff, the gate checks content invariants only. Dispatch on main or
-      # release/v* stays strict (empty mode = automatic = release).
+      - name: Copy Vale vocabulary to system path
+        run: |
+          # Vale >= 3.0: vocabularies live at <StylesPath>/config/vocabularies/<name>/accept.txt
+          # StylesPath = .vale/styles, so vocab is at .vale/styles/config/vocabularies/OmniRoute/
+          # Copy to system path only — VALE_CONFIG_PATH points to workspace config
+          # which uses relative StylesPath, so Vale also looks in workspace/.vale/styles/
+          set -e
+          mkdir -p ~/.local/share/vale/styles/config/vocabularies/OmniRoute
+          cp .vale/styles/config/vocabularies/OmniRoute/accept.txt ~/.local/share/vale/styles/config/vocabularies/OmniRoute/accept.txt
+          cp .vale/styles/config/vocabularies/OmniRoute/reject.txt ~/.local/share/vale/styles/config/vocabularies/OmniRoute/reject.txt
+          # Verify vocab files exist at system path before running check:docs-all
+          ls -la ~/.local/share/vale/styles/config/vocabularies/OmniRoute/
+      - name: Copy Vale config to system path
+        run: |
+          mkdir -p ~/.vale
+          cp .vale/config.yml ~/.vale/config.yml
       - run: npm run check:docs-all
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}

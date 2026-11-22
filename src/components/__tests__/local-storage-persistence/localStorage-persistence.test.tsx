@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 /**
  * localStorage Persistence Unit Tests

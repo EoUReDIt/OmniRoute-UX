@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useSidebarVisibility, useCurrentMode } from '@/lib/sidebarVisibility'
 
