@@ -1,13 +1,15 @@
 import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 import path from "path";
 import { isolatedDataDirEnv } from "./tests/_setup/vitestDataDir";
 
 export default defineConfig({
   test: {
-    environment: "node",
+    environment: "jsdom",
     globals: true,
     // A throwaway DATA_DIR for the run, so no suite can reach the developer's ~/.omniroute.
     env: isolatedDataDirEnv(),
+    setupFiles: ["./tests/_setup/vitestUiPolyfills.ts"],
     globalSetup: ["./tests/_setup/vitestDataDir.ts"],
     pool: "threads",
     // MCP suites initialize isolated SQLite databases; Vitest 5 at 20 workers
@@ -37,6 +39,7 @@ export default defineConfig({
       reportsDirectory: "coverage",
     },
   },
+  plugins: [react()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

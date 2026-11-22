@@ -1,6 +1,6 @@
 /**
  * Rate limiter with per-user and per-IP tracking.
- * 
+ *
  * Security gates:
  * - Per-user: 10 requests/minute (keyPrefix: settings-user)
  * - Per-IP: 5 requests/minute (keyPrefix: settings-ip)
@@ -22,7 +22,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-class RateLimiter {
+export class RateLimiter {
   private windowMs: number;
   private max: number;
   private keyPrefix: string;
@@ -65,9 +65,13 @@ class RateLimiter {
     const resetAt = now + 60_000; // 60 second window
 
     // Get current count
-    const row = db.prepare(`
+    const row = db
+      .prepare(
+        `
       SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
-    `).get(this.getKey(identifier)) as RateLimitRecord | undefined;
+    `
+      )
+      .get(key) as RateLimitRecord | undefined;
 
     let count = 1;
     let resetAt = resetAt;
@@ -94,13 +98,17 @@ class RateLimiter {
 
     // Increment or insert
     if (row) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
-      `).run(count, resetAt, this.getKey(identifier));
+      `
+      ).run(count, resetAt, key);
     } else {
-      db.prepare(`
+      db.prepare(
+        `
         INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
-      `).run(this.getKey(identifier), count, resetAt);
+      `
+      ).run(key, count, resetAt);
     }
 
     return {
@@ -170,15 +178,18 @@ export async function rateLimitMiddleware(
     const retryAfter = Math.max(userResult.retryAfter || 0, ipResult.retryAfter || 0);
     headers["Retry-After"] = String(retryAfter);
     headers["X-RateLimit-Limit"] = "10"; // User limit
-    
+
     return {
-      response: new Response(JSON.stringify({
-        error: "Rate limit exceeded",
-        retryAfter,
-      }), {
-        status: 429,
-        headers,
-      }),
+      response: new Response(
+        JSON.stringify({
+          error: "Rate limit exceeded",
+          retryAfter,
+        }),
+        {
+          status: 429,
+          headers,
+        }
+      ),
       headers,
     };
   }
