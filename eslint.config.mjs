@@ -67,6 +67,9 @@ const eslintConfig = [
     // Escopo = onde os presets do next registram estes plugins (bloco global sem `files`
     // atingiria scripts/*.mjs sem o plugin react-hooks e explodiria o flat config).
     files: ["src/**/*.{ts,tsx,js,jsx}"],
+    languageOptions: {
+      parser: tseslint.parser,
+    },
     rules: {
       "react-hooks/exhaustive-deps": "error",
       "@next/next/no-img-element": "error",
@@ -157,6 +160,9 @@ const eslintConfig = [
   // registering a second plugin object is rejected by ESLint 10.
   {
     files: ["open-sse/**/*.ts", "tests/**/*.ts"],
+    languageOptions: {
+      parser: tseslint.parser,
+    },
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "@next/next/no-assign-module-variable": "off",
