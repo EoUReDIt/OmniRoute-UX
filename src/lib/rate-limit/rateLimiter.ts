@@ -57,58 +57,58 @@ class RateLimiter {
   }
 
   async consume(identifier: string): Promise<RateLimitResult> {
-    this.cleanExpired();
+      this.cleanExpired();
 
-    const db = getDbInstance();
-    const key = this.getKey(identifier);
-    const now = Date.now();
-    const resetAt = now + 60_000; // 60 second window
+      const db = getDbInstance();
+          const _key = this.getKey(identifier);
+          const now = Date.now();
+          const resetAt = now + 60_000; // 60 second window
 
-    // Get current count
-    const row = db.prepare(`
-      SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
-    `).get(this.getKey(identifier)) as RateLimitRecord | undefined;
+          // Get current count
+          const row = db.prepare(`
+            SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
+          `).get(this.getKey(identifier)) as RateLimitRecord | undefined;
 
-    let count = 1;
-    let resetAt = resetAt;
+          let count = 1;
+          let resetAtVal = resetAt;
 
-    if (row) {
-      if (now < row.resetAt) {
-        count = row.count + 1;
-      } else {
-        // Window expired, reset
-        count = 1;
+          if (row) {
+            if (now < row.resetAt) {
+              count = row.count + 1;
+            } else {
+              // Window expired, reset
+              count = 1;
+            }
+            resetAtVal = row.resetAt;
+          }
+
+      if (count > this.max) {
+        const retryAfter = Math.ceil((row?.resetAt || resetAtVal - now) / 1000);
+        return {
+          allowed: false,
+          remaining: 0,
+          resetAt: row?.resetAt || resetAtVal,
+          retryAfter,
+        };
       }
-      resetAt = row.resetAt;
-    }
 
-    if (count > this.max) {
-      const retryAfter = Math.ceil((row?.resetAt || resetAt - now) / 1000);
+      // Increment or insert
+      if (row) {
+        db.prepare(`
+          UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
+        `).run(count, resetAtVal, _key);
+      } else {
+        db.prepare(`
+          INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
+        `).run(_key, count, resetAtVal);
+      }
+
       return {
-        allowed: false,
-        remaining: 0,
-        resetAt: row?.resetAt || resetAt,
-        retryAfter,
+        allowed: true,
+        remaining: Math.max(0, this.max - count),
+        resetAt: resetAtVal,
       };
     }
-
-    // Increment or insert
-    if (row) {
-      db.prepare(`
-        UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
-      `).run(count, resetAt, this.getKey(identifier));
-    } else {
-      db.prepare(`
-        INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
-      `).run(this.getKey(identifier), count, resetAt);
-    }
-
-    return {
-      allowed: true,
-      remaining: Math.max(0, this.max - count),
-      resetAt,
-    };
-  }
 }
 
 // Export singleton instances
