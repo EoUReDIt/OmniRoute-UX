@@ -22,7 +22,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-class RateLimiter {
+export class RateLimiter {
   private windowMs: number;
   private max: number;
   private keyPrefix: string;
