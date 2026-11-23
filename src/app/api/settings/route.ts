@@ -58,7 +58,6 @@ export async function PATCH(request: Request): Promise<Response> {
   // 7. Return updated settings - secrets redacted per Phase 1 GREEN
   const responseBody = {
     ...preservedBody,
-    // oidcClientSecretConfigured and entraGraphClientSecretConfigured are boolean flags ONLY
   };
 
   return new Response(JSON.stringify(responseBody), {
