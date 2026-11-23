@@ -8,7 +8,7 @@
  * - 429 with Retry-After header on limit exceeded
  */
 
-import { getDbInstance } from "../../db/client";
+import { getDbInstance } from "@/lib/db/client";
 
 interface RateLimitRecord {
   count: number;
