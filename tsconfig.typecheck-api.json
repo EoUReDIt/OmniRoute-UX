@@ -5,5 +5,15 @@
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo-typecheck-api"
   },
-  "include": ["src/app/api/**/*.ts", "src/app/api/**/*.tsx"]
+  "include": [
+    "src/app/api/**/*.ts",
+    "src/app/api/**/*.tsx",
+    "src/lib/rate-limit/**/*.ts",
+    "src/lib/db/**/*.ts"
+  ],
+  "exclude": [
+    "src/lib/rate-limit/__tests__/**/*.ts",
+    "**/*.test.ts",
+    "**/*.test.tsx"
+  ]
 }

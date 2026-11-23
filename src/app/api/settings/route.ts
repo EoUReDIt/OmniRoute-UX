@@ -1,5 +1,5 @@
 import { requireManagementAuth } from '@/lib/api/requireManagementAuth'
-import { RateLimiter } from '@/lib/rate-limit/rateLimiter'
+import { ipRateLimiter, getClientIP } from '@/lib/rate-limit/rateLimiter'
 
 interface SettingsPatchBody {
   dashboardUiMode?: 'simple' | 'original'
@@ -15,9 +15,9 @@ export async function PATCH(request: Request): Promise<Response> {
     if (authError) return authError
 
     // 2. Rate limiting - 5/min IP from Phase 1
-    const ipRateLimiter = new RateLimiter({ windowMs: 60_000, max: 5, keyPrefix: "settings-ip" })
-    const rateLimitCheck = await ipRateLimiter.check(request)
-    if (rateLimitCheck.exceeded) {
+    const clientIP = getClientIP(request)
+    const rateLimitCheck = await ipRateLimiter.consume(clientIP)
+    if (!rateLimitCheck.allowed) {
       return new Response(
         JSON.stringify({ error: 'Rate limit exceeded', retryAfter: rateLimitCheck.retryAfter }),
         { status: 429, headers: { 'Retry-After': String(rateLimitCheck.retryAfter) } }
@@ -59,7 +59,6 @@ export async function PATCH(request: Request): Promise<Response> {
     // 7. Return updated settings - secrets redacted per Phase 1 GREEN
     const responseBody = {
       ...preservedBody,
-      // oidcClientSecretConfigured and entraGraphClientSecretConfigured are boolean flags ONLY
     }
 
     return new Response(
@@ -68,8 +67,8 @@ export async function PATCH(request: Request): Promise<Response> {
         status: 200,
         headers: {
           'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': rateLimitCheck.remaining.toString(),
-          'X-RateLimit-Reset': rateLimitCheck.resetTime.toString(),
+          'X-RateLimit-Remaining': String(rateLimitCheck.remaining),
+          'X-RateLimit-Reset': String(Math.ceil(rateLimitCheck.resetAt / 1000)),
         },
       }
     )
