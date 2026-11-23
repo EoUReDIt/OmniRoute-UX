@@ -292,19 +292,19 @@ jobs:
           | Parity ✅ | Both pass | Good - no regression |
           
           ## 🚨 Required Actions
-          ${{ fromJson(steps.test_comparison.outputs.comparison).regression && '### 🛑 REGRESSION DETECTED
+          ${{ fromJson(steps.test_comparison.outputs.comparison).regression && '#### 🛑 REGRESSION DETECTED
 
 **Upstream tests pass but our tests fail.** This means our changes broke something that worked upstream.
 
 **Required**: Fix failing tests before merge.
 ' || '' }}
-          ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure && '### ⚠️ NEW FAILURE
+          ${{ fromJson(steps.test_comparison.outputs.comparison).new_failure && '#### ⚠️ NEW FAILURE
 
 **Both upstream and our tests fail.** This may be an upstream issue or environment problem.
 
 **Required**: Investigate if upstream is broken or if our environment differs.
 ' || '' }}
-          ${{ fromJson(steps.test_comparison.outputs.comparison).fixed && '### ✅ FIXED UPSTREAM BUG
+          ${{ fromJson(steps.test_comparison.outputs.comparison).fixed && '#### ✅ FIXED UPSTREAM BUG
 
 **Upstream tests fail but our tests pass.** We fixed a bug that exists upstream.
 
