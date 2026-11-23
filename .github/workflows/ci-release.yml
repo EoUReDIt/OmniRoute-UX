@@ -46,8 +46,8 @@ jobs:
           cache: "npm"
       - name: Check Node.js version (minimum 21)
         run: |
-          NODE_VERSION=$(node --version | sed \'s/v//\')
-          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          NODE_VERSION=$(node --version | sed 's/v//g')
+          MAJOR_VERSION=$(echo "$NODE_VERSION" | cut -d. -f1)
           if [ "$MAJOR_VERSION" -lt 21 ]; then
             echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
             exit 1
@@ -120,8 +120,8 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - name: Check Node.js version (minimum 21)
         run: |
-          NODE_VERSION=$(node --version | sed 's/v//')
-          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
+          NODE_VERSION=$(node --version | sed 's/v//g')
+          MAJOR_VERSION=$(echo "$NODE_VERSION" | cut -d. -f1)
           if [ "$MAJOR_VERSION" -lt 21 ]; then
             echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
             exit 1
@@ -200,7 +200,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ needs.pre-release.outputs.version }}
           name: Release v${{ needs.pre-release.outputs.version }}
@@ -218,6 +218,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     if: ${{ github.event.inputs.dry_run != 'true' && secrets.NPM_TOKEN != '' }}
+    env:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Download package
         uses: actions/download-artifact@v4
