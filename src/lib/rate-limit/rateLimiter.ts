@@ -8,7 +8,7 @@
  * - 429 with Retry-After header on limit exceeded
  */
 
-import { getDbInstance } from "@/lib/db/client";
+import { getDbInstance } from "@/lib/db/core";
 
 interface RateLimitRecord {
   count: number;
@@ -22,7 +22,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-export class RateLimiter {
+class RateLimiter {
   private windowMs: number;
   private max: number;
   private keyPrefix: string;
@@ -60,37 +60,39 @@ export class RateLimiter {
     this.cleanExpired();
 
     const db = getDbInstance();
-    const _key = this.getKey(identifier);
+    const key = this.getKey(identifier);
     const now = Date.now();
-    let resetAt = now + 60_000; // 60 second window
+    const windowEnd = now + 60_000; // 60 second window
 
     // Get current count
     const row = db
       .prepare(
         `
-      SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
-    `
+        SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
+      `
       )
-      .get(this.getKey(identifier)) as RateLimitRecord | undefined;
+      .get(key) as RateLimitRecord | undefined;
 
     let count = 1;
+    let resetAt = windowEnd;
 
     if (row) {
       if (now < row.resetAt) {
         count = row.count + 1;
+        resetAt = row.resetAt;
       } else {
         // Window expired, reset
         count = 1;
+        resetAt = windowEnd;
       }
-      resetAt = row.resetAt;
     }
 
     if (count > this.max) {
-      const retryAfter = Math.ceil((row?.resetAt || resetAt - now) / 1000);
+      const retryAfter = Math.ceil((resetAt - now) / 1000);
       return {
         allowed: false,
         remaining: 0,
-        resetAt: row?.resetAt || resetAt,
+        resetAt,
         retryAfter,
       };
     }
@@ -99,15 +101,15 @@ export class RateLimiter {
     if (row) {
       db.prepare(
         `
-        UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
-      `
-      ).run(count, resetAt, this.getKey(identifier));
+          UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
+        `
+      ).run(count, resetAt, key);
     } else {
       db.prepare(
         `
-        INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
-      `
-      ).run(this.getKey(identifier), count, resetAt);
+          INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
+        `
+      ).run(key, count, resetAt);
     }
 
     return {
