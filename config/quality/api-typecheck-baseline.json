@@ -307,19 +307,17 @@
     "TS2339": 1
   },
   "_program": {
-    "files": 4372,
+    "files": 6512,
     "include": [
       "src/app/api/**/*.ts",
-      "src/app/api/**/*.tsx"
+      "src/app/api/**/*.tsx",
+      "src/lib/rate-limit/**/*.ts",
+      "src/lib/db/**/*.ts"
     ],
-    "exclude": [],
+    "exclude": ["src/lib/rate-limit/__tests__/**/*.ts", "**/*.test.ts", "**/*.test.tsx"],
     "compilerOptions": {
       "target": "ES2022",
-      "lib": [
-        "dom",
-        "dom.iterable",
-        "esnext"
-      ],
+      "lib": ["dom", "dom.iterable", "esnext"],
       "allowJs": true,
       "checkJs": false,
       "skipLibCheck": true,
@@ -335,24 +333,12 @@
       "incremental": true,
       "forceConsistentCasingInFileNames": true,
       "paths": {
-        "@/*": [
-          "./src/*"
-        ],
-        "@omniroute/open-sse": [
-          "./open-sse"
-        ],
-        "@omniroute/open-sse/*": [
-          "./open-sse/*"
-        ],
-        "@omniroute/browser-pool": [
-          "./packages/browser-pool/src"
-        ],
-        "@omniroute/ui-kit": [
-          "./packages/ui-kit/src"
-        ],
-        "@omniroute/ui-kit/*": [
-          "./packages/ui-kit/src/*"
-        ]
+        "@/*": ["./src/*"],
+        "@omniroute/open-sse": ["./open-sse"],
+        "@omniroute/open-sse/*": ["./open-sse/*"],
+        "@omniroute/browser-pool": ["./packages/browser-pool/src"],
+        "@omniroute/ui-kit": ["./packages/ui-kit/src"],
+        "@omniroute/ui-kit/*": ["./packages/ui-kit/src/*"]
       },
       "plugins": [
         {

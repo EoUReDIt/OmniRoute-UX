@@ -58,7 +58,7 @@ export async function POST(request: Request): Promise<Response> {
     });
   }
 
-  // 3. Handle based on operation type
+  // 4. Handle based on operation type
   if (body.hint.startsWith("STORE:")) {
     // Store hint value
     const actualValue = body.hint.substring(6);
@@ -98,6 +98,35 @@ export async function POST(request: Request): Promise<Response> {
       headers: { "Content-Type": "application/json" },
     });
   }
+}
+
+// Method not allowed for unsupported HTTP methods
+export async function GET(): Promise<Response> {
+  return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+    status: 405,
+    headers: { "Content-Type": "application/json", Allow: "POST" },
+  });
+}
+
+export async function PUT(): Promise<Response> {
+  return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+    status: 405,
+    headers: { "Content-Type": "application/json", Allow: "POST" },
+  });
+}
+
+export async function DELETE(): Promise<Response> {
+  return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+    status: 405,
+    headers: { "Content-Type": "application/json", Allow: "POST" },
+  });
+}
+
+export async function PATCH(): Promise<Response> {
+  return new Response(JSON.stringify({ error: "Method not allowed. Use POST." }), {
+    status: 405,
+    headers: { "Content-Type": "application/json", Allow: "POST" },
+  });
 }
 
 export {
