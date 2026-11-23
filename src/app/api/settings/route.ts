@@ -70,5 +70,4 @@ export async function PATCH(request: Request): Promise<Response> {
   });
 }
 
-export { PATCH };
 export { PATCH as GET }; // For compatibility with some test setups
