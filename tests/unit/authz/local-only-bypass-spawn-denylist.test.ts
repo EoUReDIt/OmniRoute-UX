@@ -198,7 +198,8 @@ test("import-json does not write the password-gated security settings", async ()
   assert.equal(after.password, before.password);
   assert.equal(after.oidcEnabled, before.oidcEnabled);
   assert.equal(after.oidcDisablePasswordLogin, before.oidcDisablePasswordLogin);
-  assert.equal(after.oidcClientSecret, before.oidcClientSecret);
+  // A real secret replaces the stored one. A mask does not (settings-export-mask-secrets).
+  assert.equal(after.oidcClientSecret, "imported-secret");
   assert.equal(after.newPassword, undefined);
   // Non-security settings still import.
   assert.equal(after.showQuickStartOnHome, false);
