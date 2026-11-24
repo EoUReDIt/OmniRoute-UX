@@ -194,6 +194,47 @@ describe("dashboardUiMode", () => {
     assert.equal(settings.sidebarActivePreset, "developer");
   });
 
+  test("GET and PATCH hide OIDC and Entra secrets, and a masked PATCH keeps them", async () => {
+    await harness.settingsDb.updateSettings({
+      oidcClientSecret: "oidc-real-secret-value",
+      entraGraphClientSecret: "entra-real-secret-value",
+    });
+
+    const fetched = await harness.settingsRoute.GET(
+      await makeManagementSessionRequest("http://localhost/api/settings")
+    );
+    const fetchedBody = (await fetched.json()) as Record<string, unknown>;
+    const fetchedText = JSON.stringify(fetchedBody);
+    assert.equal(fetched.status, 200);
+    assert.equal(fetchedText.includes("oidc-real-secret-value"), false);
+    assert.equal(fetchedText.includes("entra-real-secret-value"), false);
+    assert.equal(fetchedBody.oidcClientSecret, "********");
+    assert.equal(fetchedBody.entraGraphClientSecret, "********");
+
+    const patched = await harness.settingsRoute.PATCH(
+      await makeManagementSessionRequest("http://localhost/api/settings", {
+        method: "PATCH",
+        body: {
+          oidcClientSecret: "********",
+          entraGraphClientSecret: "********",
+          dashboardUiMode: "simple",
+        },
+      })
+    );
+    const patchedBody = (await patched.json()) as Record<string, unknown>;
+    const patchedText = JSON.stringify(patchedBody);
+    assert.equal(patched.status, 200);
+    assert.equal(patchedText.includes("oidc-real-secret-value"), false);
+    assert.equal(patchedText.includes("entra-real-secret-value"), false);
+    assert.equal(patchedBody.oidcClientSecret, "********");
+    assert.equal(patchedBody.entraGraphClientSecret, "********");
+
+    const stored = await harness.settingsDb.getSettings();
+    assert.equal(stored.oidcClientSecret, "oidc-real-secret-value");
+    assert.equal(stored.entraGraphClientSecret, "entra-real-secret-value");
+    assert.equal(stored.dashboardUiMode, "simple");
+  });
+
   test("chat request handlers do not read the dashboard view", () => {
     const files = [
       "src/app/api/v1/chat/completions/route.ts",
