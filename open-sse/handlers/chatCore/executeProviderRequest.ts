@@ -159,6 +159,8 @@ export type ExecuteProviderRequestDeps = {
   settings: Record<string, unknown> | null | undefined;
   toolDisclosure?: ToolDisclosureConfig | null;
   skipUpstreamRetry: boolean;
+  /** Invoked when a hintless 429 arrives. Undefined keeps the same-key wait. */
+  resolveDeferHintless429?: () => Promise<boolean>;
   requestUpstreamStartTimeoutMs?: number;
   stream: boolean;
   streamController: { signal: AbortSignal };
@@ -220,6 +222,7 @@ export async function executeProviderRequest(
     userAgent: _userAgent,
   } = deps;
   const body = rawBody;
+  const resolveDeferHintless429 = deps.resolveDeferHintless429;
   const recordResponseKeyHealth = (
     response: Response,
     creds: Record<string, unknown>,
@@ -409,6 +412,7 @@ export async function executeProviderRequest(
                         clientResponseFormat,
                         onCredentialsRefreshed: fencedCredentialsRefreshed,
                         skipUpstreamRetry,
+                        resolveDeferHintless429,
                         contextEditing: { enabled: contextEditingEnabled },
                         correlationId,
                       });
@@ -620,6 +624,7 @@ export async function executeProviderRequest(
                             clientResponseFormat,
                             onCredentialsRefreshed: fencedCredentialsRefreshed,
                             skipUpstreamRetry,
+                            resolveDeferHintless429,
                             contextEditing: { enabled: contextEditingEnabled },
                             correlationId,
                           });

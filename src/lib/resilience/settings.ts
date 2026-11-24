@@ -101,6 +101,7 @@ export const DEFAULT_RESILIENCE_SETTINGS: ResilienceSettings = {
     maxWaitMs: DEFAULT_REQUEST_QUEUE_MAX_WAIT_MS,
     executionMaxWaitMs: DEFAULT_REQUEST_QUEUE_EXECUTION_MAX_WAIT_MS,
     maxQueueDepth: DEFAULT_REQUEST_QUEUE_MAX_DEPTH,
+    failoverHintless429: false,
   },
   connectionCooldown: {
     oauth: {
@@ -308,6 +309,7 @@ function buildLegacyFallback(settings: JsonRecord): ResilienceSettings {
       maxWaitMs: DEFAULT_RESILIENCE_SETTINGS.requestQueue.maxWaitMs,
       executionMaxWaitMs: DEFAULT_RESILIENCE_SETTINGS.requestQueue.executionMaxWaitMs,
       maxQueueDepth: DEFAULT_RESILIENCE_SETTINGS.requestQueue.maxQueueDepth,
+      failoverHintless429: DEFAULT_RESILIENCE_SETTINGS.requestQueue.failoverHintless429,
     },
     connectionCooldown: {
       oauth: normalizeLegacyConnectionCooldownProfile(
@@ -527,6 +529,17 @@ export function mergeResilienceSettings(
       updates.credentialHealthCheck,
       current.credentialHealthCheck
     ),
+  };
+}
+
+/** Effective request-queue knobs, including code defaults the operator never saved. */
+export function effectiveRequestQueueSnapshot(
+  settings: Record<string, unknown> | null | undefined
+) {
+  const queue = resolveResilienceSettings(settings).requestQueue;
+  return {
+    minTimeBetweenRequestsMs: queue.minTimeBetweenRequestsMs,
+    failoverHintless429: queue.failoverHintless429,
   };
 }
 

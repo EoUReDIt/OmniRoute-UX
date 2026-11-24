@@ -39,6 +39,16 @@ export interface RequestQueueSettings {
    * = disabled, preserving the unbounded-queue behavior. Bounded 0-100000.
    */
   maxQueueDepth: number;
+  /**
+   * Off by default. When true, a 429 with no Retry-After and no body retry hint
+   * is handed back immediately only if credential selection, with this
+   * connection excluded, would return a different connection that does not
+   * share this account or org. The same-key retry (RETRY_CONFIG, 2s with
+   * jitter, up to 2 times) still runs when this is false, when the 429 carries
+   * a hint, when selection would not pick someone else, or after this request
+   * has already switched accounts.
+   */
+  failoverHintless429: boolean;
 }
 
 /**

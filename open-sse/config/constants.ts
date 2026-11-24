@@ -345,12 +345,21 @@ export const PROVIDER_PROFILES = {
   },
 };
 
-// Default rate limit values for API Key providers (auto-enabled safety net)
-// These are intentionally HIGH — they won't restrict normal usage.
-// Real limits are learned from provider response headers.
+// Default rate limit values for API Key providers (auto-enabled safety net).
+// Real limits are learned from provider response headers (see rateLimitManager.updateFromHeaders).
+// A learned spacing that is slower than this floor still wins. Headroom relaxation (#9763)
+// will not go below the floor. The 60 RPM reservoir and concurrency cap are unchanged.
+//
+// minTimeBetweenRequests was 200, then 350 in #2903 (bundled with a RAM reduction).
+// A warm 200ms upstream pays about 130ms of that gap (Phase 1 §4.2). 100ms stays
+// opt-in: pruneResilienceSettingsToProvided does not store a value equal to the
+// default, so existing installs have no saved 350. Changing this constant would
+// move those installs, and headroom relaxation would follow the new floor.
+// Operators set requestQueue.minTimeBetweenRequestsMs to OPT_IN_MIN_TIME_BETWEEN_REQUESTS_MS.
+export const OPT_IN_MIN_TIME_BETWEEN_REQUESTS_MS = 100;
 export const DEFAULT_API_LIMITS = {
   requestsPerMinute: 60, // 60 RPM (reduced from 100 — saves Bottleneck queue memory)
-  minTimeBetweenRequests: 350, // 350ms minimum gap (increased from 200)
+  minTimeBetweenRequests: 350, // 350ms minimum gap (increased from 200 in #2903)
   concurrentRequests: 6, // Max 6 parallel per provider (reduced from 10)
 };
 

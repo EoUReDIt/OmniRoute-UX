@@ -25,6 +25,7 @@ type RequestQueueSettings = {
   globalConcurrentRequests: number;
   maxWaitMs: number;
   executionMaxWaitMs: number;
+  failoverHintless429: boolean;
 };
 
 type CredentialHealthCheckSettings = {
@@ -242,6 +243,23 @@ function RequestQueueCard({
       </div>
 
       <p className="mb-4 text-sm text-text-muted">{t("resilienceRequestQueueDesc")}</p>
+      <div className="mb-4">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={saving}
+          onClick={() =>
+            onSave({
+              ...value,
+              minTimeBetweenRequestsMs: 350,
+              failoverHintless429: false,
+            })
+          }
+        >
+          {t("resilienceRestoreStandardPacing")}
+        </Button>
+        <p className="mt-2 text-sm text-text-muted">{t("resilienceRestoreStandardPacingDesc")}</p>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {editing ? (
@@ -252,6 +270,14 @@ function RequestQueueCard({
               checked={draft.autoEnableApiKeyProviders}
               onChange={(autoEnableApiKeyProviders) =>
                 setDraft((prev) => ({ ...prev, autoEnableApiKeyProviders }))
+              }
+            />
+            <BooleanField
+              label={t("resilienceFailoverHintless429")}
+              description={t("resilienceFailoverHintless429Desc")}
+              checked={draft.failoverHintless429}
+              onChange={(failoverHintless429) =>
+                setDraft((prev) => ({ ...prev, failoverHintless429 }))
               }
             />
             <NumberField
@@ -309,6 +335,12 @@ function RequestQueueCard({
               </div>
               <div className="mt-1 text-sm font-semibold text-text-main">
                 {value.autoEnableApiKeyProviders ? t("statusEnabled") : t("statusDisabled")}
+              </div>
+            </div>
+            <div className="rounded-xl border border-border bg-bg-subtle p-4">
+              <div className="text-xs text-text-muted">{t("resilienceFailoverHintless429")}</div>
+              <div className="mt-1 text-sm font-semibold text-text-main">
+                {value.failoverHintless429 ? t("statusEnabled") : t("statusDisabled")}
               </div>
             </div>
             <div className="rounded-xl border border-border bg-bg-subtle p-4">
