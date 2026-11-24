@@ -6,7 +6,7 @@ Verified 2026-11-24 against the GitHub branch and PR APIs. Release tip `24550c54
 
 | Rule | Fact |
 | --- | --- |
-| Upstream | `cheaper-inference/OmniRoute`. This fork does not push there and does not open PRs there. |
+| Source repo | `cheaper-inference/OmniRoute` is where this fork started. Owner policy (2026-11-24): no upstreaming, and no downstream merges unless the owner decides one serves this fork's goals. Do not add an `upstream` remote, do not use "Sync fork", and do not open PRs there. |
 | Default branch | `release/v3.8.55` (tip `24550c54`). Never delete it. GitHub branch API `protected`: `false`. |
 | Branches | Start each one from `release/v3.8.55`. One feature per branch. Names: `ux/<feature>-<phase>`. |
 | `cursor/*` | Agent branches. Open PR heads also use these names: `cursor/simple-view-phase2-8062` (#30), `cursor/faster-queue-retry-defaults-c1e3` (#2). |
