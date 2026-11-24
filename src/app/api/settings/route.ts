@@ -368,68 +368,430 @@ async function validateEntraSsoPatch(
   return null;
 }
 
+type PatchCtx = { request: Request; actor: string; attemptedKeys: string[] };
+type PatchBody = z.infer<typeof updateSettingsSchema> & { password?: string };
+type SessionPayload = Awaited<ReturnType<typeof verifyDashboardSessionToken>>;
+
+/** Audit a rejected PATCH, then answer with the matching JSON error. */
+function rejectPatch(
+  ctx: PatchCtx,
+  code: string,
+  payload: unknown,
+  status: number,
+  headers?: Record<string, string>
+): Response {
+  emitSettingsFailureAudit(ctx.request, ctx.actor, code, ctx.attemptedKeys);
+  return NextResponse.json(payload, headers ? { status, headers } : { status });
+}
+
+async function readJsonObjectBody(
+  request: Request,
+  actor: string
+): Promise<{ rawBody: Record<string, unknown> } | { response: Response }> {
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    // Malformed JSON — surface a zod-style failure path so the rejection
+    // is auditable like every other 400.
+    emitSettingsFailureAudit(request, actor, "INVALID_JSON", []);
+    return {
+      response: NextResponse.json(
+        { error: { code: "INVALID_JSON", message: "Request body is not valid JSON" } },
+        { status: 400 }
+      ),
+    };
+  }
+  if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
+    // Valid JSON that is not an object (`null`, a string, a number): nothing to read keys from.
+    emitSettingsFailureAudit(request, actor, "INVALID_BODY", []);
+    return {
+      response: NextResponse.json(
+        { error: { code: "INVALID_BODY", message: "Request body must be a JSON object" } },
+        { status: 400 }
+      ),
+    };
+  }
+  return { rawBody: rawBody as Record<string, unknown> };
+}
+
+async function validatePatchBody(
+  ctx: PatchCtx,
+  rawBody: Record<string, unknown>
+): Promise<
+  { response: Response } | { data: Record<string, unknown>; body: PatchBody; ignoredKeys: string[] }
+> {
+  const validation = validateBody(updateSettingsSchema, rawBody);
+  if (isValidationFailure(validation)) {
+    // Detect spawn-capable prefix rejection (spec AC-8) so the audit row
+    // names the correct error code; otherwise fall back to the generic
+    // validation-failure label.
+    const isBypassPrefixRejection = (validation.error.details || []).some(
+      (d) => typeof d.message === "string" && d.message.includes("BYPASS_PREFIX_NOT_ALLOWED")
+    );
+    const code = isBypassPrefixRejection ? "BYPASS_PREFIX_NOT_ALLOWED" : "VALIDATION_FAILED";
+    return { response: rejectPatch(ctx, code, { error: validation.error }, 400) };
+  }
+  const body: PatchBody = { ...validation.data };
+  // The schema strips keys it does not know. Name them in the 200 body so a typo or a stale
+  // client never looks like a saved setting.
+  const ignoredKeys = Object.keys(rawBody).filter((key) => !Object.hasOwn(validation.data, key));
+  // GET returns stored secrets masked; a client that sends the mask back keeps the stored value.
+  for (const key of unchangedSecretSettingKeys(validation.data)) {
+    delete (validation.data as Record<string, unknown>)[key];
+    delete (body as Record<string, unknown>)[key];
+  }
+  return { data: validation.data as Record<string, unknown>, body, ignoredKeys };
+}
+
+/** OIDC and Entra SSO business rules that need more than the Zod shape check. */
+async function rejectInvalidSsoPolicy(ctx: PatchCtx, body: PatchBody): Promise<Response | null> {
+  const oidcPolicyError = await validateOidcPolicyPatch(body);
+  if (oidcPolicyError) {
+    return rejectPatch(ctx, oidcPolicyError.code, { error: oidcPolicyError }, 400);
+  }
+  const entraPolicyError = await validateEntraSsoPatch(body);
+  if (entraPolicyError) {
+    return rejectPatch(ctx, entraPolicyError.code, { error: entraPolicyError }, 400);
+  }
+  return null;
+}
+
+/** Verify currentPassword against the stored hash; null when the caller may proceed. */
+async function verifyCurrentPassword(
+  ctx: PatchCtx,
+  body: PatchBody,
+  storedPasswordHash: string | null | undefined,
+  touchedSecurityKeys: string[]
+): Promise<Response | null> {
+  if (!body.currentPassword) {
+    return rejectPatch(
+      ctx,
+      "PASSWORD_REQUIRED",
+      {
+        error: {
+          code: "PASSWORD_REQUIRED",
+          message: "currentPassword required for security-impacting setting changes",
+          keys: touchedSecurityKeys,
+        },
+      },
+      400
+    );
+  }
+  const isValid = await verifyManagementPassword(body.currentPassword, storedPasswordHash);
+  if (!isValid) {
+    return rejectPatch(
+      ctx,
+      "PASSWORD_MISMATCH",
+      { error: { code: "PASSWORD_MISMATCH", message: "Invalid current password" } },
+      401
+    );
+  }
+  return null;
+}
+
+/**
+ * Validated body only, so stray unknown keys never trip this. If any security key is present,
+ * require currentPassword and verify it against the stored bcrypt hash. The password is verified
+ * at most once per PATCH (this also covers the newPassword reauth).
+ */
+async function enforceSecurityReauth(
+  ctx: PatchCtx,
+  data: Record<string, unknown>,
+  body: PatchBody
+): Promise<Response | null> {
+  const touchedSecurityKeys = SECURITY_IMPACTING_SETTINGS_KEYS.filter((k) => k in data);
+  if (touchedSecurityKeys.length === 0) return null;
+
+  const settings = await getSettings();
+  // Lazy-hash any plaintext INITIAL_PASSWORD migration BEFORE we read the
+  // stored hash, so the gate works on fresh deploys too.
+  const passwordState = await ensurePersistentManagementPasswordHash({
+    settings,
+    source: "settings.security_impacting_update",
+  });
+  const storedPasswordHash = getStoredManagementPassword(passwordState.settings);
+  // Cold-boot exception: when no password is configured yet AND login is currently disabled,
+  // allow the first write to set policy (incl. the password itself). Once a hash exists the
+  // gate always fires. #8950: also treat the request as cold boot when newPassword is present
+  // without a stored hash, so the Security tab's two-step flow (enable requireLogin first, then
+  // set password) does not deadlock.
+  const isColdBoot =
+    !storedPasswordHash &&
+    (passwordState.settings.requireLogin === false || Boolean(body.newPassword));
+  if (isColdBoot) return null;
+  return verifyCurrentPassword(ctx, body, storedPasswordHash, touchedSecurityKeys);
+}
+
+/**
+ * #6540: reject a paid-only webSearchRouteModel target when hidePaidModels is on. Business-rule
+ * check (needs an async DB read), so it runs after Zod shape validation rather than as a Zod
+ * .refine(). Fails open on "unknown" (aliases/combo names) — only a positively-identified paid
+ * catalog entry is blocked.
+ */
+async function rejectPaidWebSearchTarget(ctx: PatchCtx, body: PatchBody): Promise<Response | null> {
+  if (typeof body.webSearchRouteModel !== "string" || body.webSearchRouteModel.trim() === "") {
+    return null;
+  }
+  const currentSettings = await getSettings();
+  if ((currentSettings as Record<string, unknown>)?.hidePaidModels !== true) return null;
+  if (isPaidModelTarget(body.webSearchRouteModel) !== "paid") return null;
+  return rejectPatch(
+    ctx,
+    "PAID_MODEL_TARGET_BLOCKED",
+    {
+      error: {
+        code: "PAID_MODEL_TARGET_BLOCKED",
+        message: "This field cannot target a paid-only model while 'Hide paid models' is enabled.",
+      },
+    },
+    400
+  );
+}
+
+/**
+ * The opencode server URL is checked BEFORE the write: the saved value reaches the executor
+ * through applyRuntimeSettings() (run by updateSettings), so a rejected URL must never be
+ * persisted, nor any other key of the same request. Clearing it back to the default applies at
+ * once. Only the URL is a setting; the CLI binary is env-only (see
+ * services/opencodeServerSettings.ts).
+ */
+function rejectInvalidOpencodeUrl(ctx: PatchCtx, rawBody: Record<string, unknown>) {
+  const ocsUrl = rawBody.opencode_server_url as string | undefined;
+  if (typeof ocsUrl !== "string" || ocsUrl.trim() === "") return null;
+  const urlValidation = validateProxyUrl(ocsUrl.trim());
+  if (urlValidation.valid !== false) return null;
+  return rejectPatch(
+    ctx,
+    "OPENCODE_SERVER_URL_INVALID",
+    { error: `Invalid opencode server URL: ${urlValidation.error}` },
+    400
+  );
+}
+
+/**
+ * Password rotation: hash the new value AFTER the gate has accepted the currentPassword (or the
+ * cold-boot exception fired). Strictly hashing + body rewriting; no separate verify happens here.
+ * A password change also ends every dashboard session issued before it, so a copy of the old
+ * cookie cannot outlive the password it was issued under. Returns the caller's own session so
+ * its cookie can be re-issued.
+ */
+async function prepareWriteBody(request: Request, body: PatchBody): Promise<SessionPayload | null> {
+  const passwordChanged = Boolean(body.newPassword);
+  if (body.newPassword) {
+    body.password = await hashManagementPassword(body.newPassword);
+    body[SESSIONS_VALID_AFTER_SETTING] = Math.floor(Date.now() / 1000);
+    delete body.newPassword;
+  }
+  const callerSession = passwordChanged
+    ? await verifyDashboardSessionToken(readCookie(request, DASHBOARD_SESSION_COOKIE))
+    : null;
+  delete body.currentPassword;
+  delete body.expectedRevision;
+  return callerSession;
+}
+
+async function writeSettings(
+  ctx: PatchCtx,
+  body: PatchBody,
+  expectedRevision: number | undefined
+): Promise<{ settings: Awaited<ReturnType<typeof getSettings>> } | { response: Response }> {
+  try {
+    return { settings: await updateSettings(body, { expectedRevision }) };
+  } catch (error) {
+    if (!(error instanceof SettingsRevisionConflictError)) throw error;
+    return {
+      response: rejectPatch(
+        ctx,
+        "SETTINGS_REVISION_CONFLICT",
+        {
+          error: {
+            code: "SETTINGS_REVISION_CONFLICT",
+            message: "Settings changed since this snapshot; refresh and retry",
+            currentRevision: error.currentRevision,
+          },
+        },
+        409,
+        settingsResponseHeaders(error.currentRevision)
+      ),
+    };
+  }
+}
+
+/** One upstream_proxy_config row per active real provider, plus the "cliproxyapi" sentinel row. */
+async function syncUpstreamProxyRows(
+  rawBody: Record<string, unknown>,
+  settings: Record<string, unknown>
+) {
+  const cpaFallback = rawBody.cliproxyapi_fallback_enabled as boolean | undefined;
+  const cpaModelMapping = rawBody.cliproxyapi_model_mapping as Record<string, string> | undefined;
+  const enabled = cpaFallback ?? settings.cliproxyapi_fallback_enabled;
+  const mode = enabled ? "fallback" : "native";
+  const mappingPart =
+    cpaModelMapping !== undefined ? { cliproxyapiModelMapping: cpaModelMapping } : {};
+
+  // Get all distinct active provider IDs so each one gets its own
+  // upstream_proxy_config row. chatCore reads per-provider config
+  // (e.g. getUpstreamProxyConfig("anthropic")), not a single global row.
+  // Embedded service IDs are not real routing targets and must be skipped.
+  const EMBEDDED_SERVICE_IDS = new Set(["cliproxyapi", "9router"]);
+  const activeConnections = await getProviderConnections({ isActive: true });
+  const activeProviderIds = [
+    ...new Set(
+      activeConnections
+        .map((c: Record<string, unknown>) => c.provider as string)
+        .filter((id: string) => !EMBEDDED_SERVICE_IDS.has(id))
+    ),
+  ];
+
+  for (const providerId of activeProviderIds) {
+    await upsertUpstreamProxyConfig({ providerId, mode, enabled: !!enabled, ...mappingPart });
+  }
+
+  // Update the "cliproxyapi" sentinel row used by GET /api/settings to
+  // retrieve cliproxyapi_model_mapping. This row is NOT used for routing
+  // (chatCore reads per-real-provider rows above); it exists solely as
+  // storage for the global model-mapping blob.
+  await upsertUpstreamProxyConfig({
+    providerId: "cliproxyapi",
+    mode,
+    enabled: !!enabled,
+    ...mappingPart,
+  });
+}
+
+/** Sync CLIProxyAPI settings to the upstream_proxy_config table (runs after the write). */
+async function syncCliproxyapi(
+  ctx: PatchCtx,
+  rawBody: Record<string, unknown>,
+  settings: Record<string, unknown>
+): Promise<Response | null> {
+  const cpaUrl = rawBody.cliproxyapi_url as string | undefined;
+  if (cpaUrl && typeof cpaUrl === "string") {
+    const urlValidation = validateProxyUrl(cpaUrl);
+    if (urlValidation.valid === false) {
+      return rejectPatch(
+        ctx,
+        "CLIPROXY_URL_INVALID",
+        { error: `Invalid CLIProxyAPI URL: ${urlValidation.error}` },
+        400
+      );
+    }
+    // Invalidate the executor's URL cache so it picks up the new URL immediately
+    clearCliproxyapiUrlCache();
+  }
+
+  const touched =
+    rawBody.cliproxyapi_fallback_enabled !== undefined ||
+    cpaUrl !== undefined ||
+    rawBody.cliproxyapi_model_mapping !== undefined;
+  if (touched) await syncUpstreamProxyRows(rawBody, settings);
+  return null;
+}
+
+/**
+ * Audit success — diff of changed keys only. Idempotent PATCH (no diff)
+ * intentionally writes NO row (spec §Observability + AC-9/AC-11).
+ */
+function auditSettingsUpdate(
+  request: Request,
+  actor: string,
+  beforeSnapshot: Record<string, unknown>,
+  settings: Record<string, unknown>,
+  body: PatchBody
+) {
+  try {
+    const diff = computeSettingsDiff(beforeSnapshot, settings, Object.keys(body));
+    if (Object.keys(diff).length === 0) return;
+    const { ipAddress, requestId } = getAuditRequestContext(request);
+    logAuditEvent({
+      action: "settings.update",
+      actor,
+      target: "settings",
+      resourceType: "settings",
+      status: "success",
+      ipAddress: ipAddress || undefined,
+      requestId: requestId || undefined,
+      details: { diff },
+    });
+  } catch {
+    // Audit failure must never break the write — swallow.
+  }
+}
+
+/**
+ * The browser that changed the password keeps its own session: swap its cookie for one issued
+ * after the cutoff instead of signing the operator out of the page they are on.
+ */
+async function reissueCallerSessionCookie(request: Request, response: NextResponse) {
+  const secret = getDashboardJwtSecret();
+  if (!secret) return;
+  const forwardedProto = (request.headers.get("x-forwarded-proto") || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase();
+  response.cookies.set(DASHBOARD_SESSION_COOKIE, await mintDashboardSessionToken(secret), {
+    httpOnly: true,
+    secure:
+      process.env.AUTH_COOKIE_SECURE === "true" ||
+      forwardedProto === "https" ||
+      new URL(request.url).protocol === "https:",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 30,
+  });
+}
+
+async function buildPatchResponse(
+  request: Request,
+  settings: Awaited<ReturnType<typeof getSettings>>,
+  ignoredKeys: string[],
+  callerSession: SessionPayload | null
+): Promise<NextResponse> {
+  const {
+    password,
+    [SESSIONS_VALID_AFTER_SETTING]: _sessionsValidAfter,
+    [REVOKED_SESSIONS_SETTING]: _revokedSessions,
+    // A JSON import can store an unknown setting named `ignoredKeys`. Only this request's
+    // dropped keys may fill the response field.
+    ignoredKeys: _storedIgnoredKeys,
+    ...safeSettings
+  } = settings;
+  const settingsRevision = await getSettingsRevision();
+  const response = NextResponse.json(
+    {
+      ...maskSecretSettings(safeSettings),
+      settingsRevision,
+      ...(ignoredKeys.length > 0 ? { ignoredKeys } : {}),
+    },
+    { headers: settingsResponseHeaders(settingsRevision) }
+  );
+  if (callerSession) await reissueCallerSessionCookie(request, response);
+  return response;
+}
+
 export async function PATCH(request: Request) {
   const authError = await requireManagementAuth(request);
   if (authError) return authError;
 
   // Derive actor + raw body once so the rejection paths can audit consistently.
   const actor = await deriveSettingsAuditActor(request);
-  let rawBody: Record<string, unknown> = {};
-  try {
-    rawBody = (await request.json()) as Record<string, unknown>;
-  } catch {
-    // Malformed JSON — surface a zod-style failure path so the rejection
-    // is auditable like every other 400.
-    emitSettingsFailureAudit(request, actor, "INVALID_JSON", []);
-    return NextResponse.json(
-      { error: { code: "INVALID_JSON", message: "Request body is not valid JSON" } },
-      { status: 400 }
-    );
-  }
-  if (!rawBody || typeof rawBody !== "object" || Array.isArray(rawBody)) {
-    // Valid JSON that is not an object (`null`, a string, a number): nothing to read keys from.
-    emitSettingsFailureAudit(request, actor, "INVALID_BODY", []);
-    return NextResponse.json(
-      { error: { code: "INVALID_BODY", message: "Request body must be a JSON object" } },
-      { status: 400 }
-    );
-  }
-  const attemptedKeys = attemptedKeysOf(rawBody);
+  const parsedBody = await readJsonObjectBody(request, actor);
+  if ("response" in parsedBody) return parsedBody.response;
+  const { rawBody } = parsedBody;
+  const ctx: PatchCtx = { request, actor, attemptedKeys: attemptedKeysOf(rawBody) };
   const expectedRevision = parseExpectedRevision(request, rawBody);
 
   try {
-    // Zod validation
-    const validation = validateBody(updateSettingsSchema, rawBody);
-    if (isValidationFailure(validation)) {
-      // Detect spawn-capable prefix rejection (spec AC-8) so the audit row
-      // names the correct error code; otherwise fall back to the generic
-      // validation-failure label.
-      const isBypassPrefixRejection = (validation.error.details || []).some(
-        (d) => typeof d.message === "string" && d.message.includes("BYPASS_PREFIX_NOT_ALLOWED")
-      );
-      emitSettingsFailureAudit(
-        request,
-        actor,
-        isBypassPrefixRejection ? "BYPASS_PREFIX_NOT_ALLOWED" : "VALIDATION_FAILED",
-        attemptedKeys
-      );
-      return NextResponse.json({ error: validation.error }, { status: 400 });
-    }
-    const body: typeof validation.data & { password?: string } = { ...validation.data };
-    // The schema strips keys it does not know. Name them in the 200 body so a typo or a stale
-    // client never looks like a saved setting.
-    const ignoredKeys = Object.keys(rawBody).filter((key) => !Object.hasOwn(validation.data, key));
-    // GET returns stored secrets masked; a client that sends the mask back keeps the stored value.
-    for (const key of unchangedSecretSettingKeys(validation.data)) {
-      delete (validation.data as Record<string, unknown>)[key];
-      delete (body as Record<string, unknown>)[key];
-    }
+    const checked = await validatePatchBody(ctx, rawBody);
+    if ("response" in checked) return checked.response;
+    const { data, body, ignoredKeys } = checked;
 
     const operatorOnly = await rejectMachineSecurityPolicyWrite(
       request,
-      validation.data as Record<string, unknown>,
+      data,
       actor,
-      attemptedKeys
+      ctx.attemptedKeys
     );
     if (operatorOnly) return operatorOnly;
 
@@ -440,274 +802,25 @@ export async function PATCH(request: Request) {
       }) as typeof body.modelLockout;
     }
 
-    const oidcPolicyError = await validateOidcPolicyPatch(body);
-    if (oidcPolicyError) {
-      emitSettingsFailureAudit(request, actor, oidcPolicyError.code, attemptedKeys);
-      return NextResponse.json({ error: oidcPolicyError }, { status: 400 });
-    }
+    const rejection =
+      (await rejectInvalidSsoPolicy(ctx, body)) ??
+      (await enforceSecurityReauth(ctx, data, body)) ??
+      (await rejectPaidWebSearchTarget(ctx, body)) ??
+      rejectInvalidOpencodeUrl(ctx, rawBody);
+    if (rejection) return rejection;
 
-    const entraPolicyError = await validateEntraSsoPatch(body);
-    if (entraPolicyError) {
-      emitSettingsFailureAudit(request, actor, entraPolicyError.code, attemptedKeys);
-      return NextResponse.json({ error: entraPolicyError }, { status: 400 });
-    }
-
-    // VALIDATED body so we never trip on stray unknown keys. If any security
-    // key is present, require currentPassword + verify against the stored
-    // bcrypt hash. Dedupes with the previous inline newPassword reauth — the
-    // password is verified at most once per PATCH.
-    const touchedSecurityKeys = SECURITY_IMPACTING_SETTINGS_KEYS.filter(
-      (k) => k in validation.data
-    );
-    if (touchedSecurityKeys.length > 0) {
-      const settings = await getSettings();
-      // Lazy-hash any plaintext INITIAL_PASSWORD migration BEFORE we read the
-      // stored hash, so the gate works on fresh deploys too.
-      const passwordState = await ensurePersistentManagementPasswordHash({
-        settings,
-        source: "settings.security_impacting_update",
-      });
-      const storedPasswordHash = getStoredManagementPassword(passwordState.settings);
-      // Cold-boot exception: same condition the existing newPassword path
-      // honoured before T-011 — when no password is configured yet AND login
-      // is currently disabled, allow the first write to set policy (incl.
-      // the password itself). Once a hash exists the gate always fires.
-      // #8950: also treat the request as cold boot when newPassword is present
-      // without a stored hash, so the Security tab's two-step flow (enable
-      // requireLogin first, then set password) does not deadlock.
-      const isColdBoot =
-        !storedPasswordHash &&
-        (passwordState.settings.requireLogin === false || Boolean(body.newPassword));
-      if (!isColdBoot) {
-        if (!body.currentPassword) {
-          emitSettingsFailureAudit(request, actor, "PASSWORD_REQUIRED", attemptedKeys);
-          return NextResponse.json(
-            {
-              error: {
-                code: "PASSWORD_REQUIRED",
-                message: "currentPassword required for security-impacting setting changes",
-                keys: touchedSecurityKeys,
-              },
-            },
-            { status: 400 }
-          );
-        }
-        const isValid = await verifyManagementPassword(body.currentPassword, storedPasswordHash);
-        if (!isValid) {
-          emitSettingsFailureAudit(request, actor, "PASSWORD_MISMATCH", attemptedKeys);
-          return NextResponse.json(
-            {
-              error: {
-                code: "PASSWORD_MISMATCH",
-                message: "Invalid current password",
-              },
-            },
-            { status: 401 }
-          );
-        }
-      }
-    }
-
-    // #6540: reject a paid-only webSearchRouteModel target when hidePaidModels
-    // is on. Business-rule check (needs an async DB read), so it runs after
-    // Zod shape validation rather than as a Zod .refine(). Fails open on
-    // "unknown" (aliases/combo names) — only a positively-identified paid
-    // catalog entry is blocked.
-    if (typeof body.webSearchRouteModel === "string" && body.webSearchRouteModel.trim() !== "") {
-      const currentSettings = await getSettings();
-      if ((currentSettings as Record<string, unknown>)?.hidePaidModels === true) {
-        if (isPaidModelTarget(body.webSearchRouteModel) === "paid") {
-          emitSettingsFailureAudit(request, actor, "PAID_MODEL_TARGET_BLOCKED", attemptedKeys);
-          return NextResponse.json(
-            {
-              error: {
-                code: "PAID_MODEL_TARGET_BLOCKED",
-                message:
-                  "This field cannot target a paid-only model while 'Hide paid models' is enabled.",
-              },
-            },
-            { status: 400 }
-          );
-        }
-      }
-    }
-
-    // The opencode server URL is checked BEFORE the write: the saved value reaches
-    // the executor through applyRuntimeSettings() (run by updateSettings), so a
-    // rejected URL must never be persisted, nor any other key of the same request.
-    // Clearing it back to the default applies at once. Only the URL is a setting;
-    // the CLI binary is env-only (see services/opencodeServerSettings.ts).
-    const ocsUrl = rawBody.opencode_server_url as string | undefined;
-    if (typeof ocsUrl === "string" && ocsUrl.trim() !== "") {
-      const urlValidation = validateProxyUrl(ocsUrl.trim());
-      if (urlValidation.valid === false) {
-        emitSettingsFailureAudit(request, actor, "OPENCODE_SERVER_URL_INVALID", attemptedKeys);
-        return NextResponse.json(
-          { error: `Invalid opencode server URL: ${urlValidation.error}` },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Password rotation: hash the new value AFTER the gate has accepted the
-    // currentPassword (or the cold-boot exception fired). The gate already
-    // included `newPassword` in SECURITY_IMPACTING_SETTINGS_KEYS, so no separate
-    // verify happens here — strictly hashing + body rewriting.
-    // A password change also ends every dashboard session issued before it, so a copy of the
-    // old cookie cannot outlive the password it was issued under.
-    const passwordChanged = Boolean(body.newPassword);
-    if (body.newPassword) {
-      body.password = await hashManagementPassword(body.newPassword);
-      body[SESSIONS_VALID_AFTER_SETTING] = Math.floor(Date.now() / 1000);
-      delete body.newPassword;
-    }
-    const callerSession = passwordChanged
-      ? await verifyDashboardSessionToken(readCookie(request, DASHBOARD_SESSION_COOKIE))
-      : null;
-    delete body.currentPassword;
-    delete body.expectedRevision;
-
+    const callerSession = await prepareWriteBody(request, body);
     // Snapshot BEFORE the write so the success row can record a real diff.
     const beforeSnapshot = (await getSettings()) as Record<string, unknown>;
-    let settings: Awaited<ReturnType<typeof getSettings>>;
-    try {
-      settings = await updateSettings(body, { expectedRevision });
-    } catch (error) {
-      if (error instanceof SettingsRevisionConflictError) {
-        emitSettingsFailureAudit(request, actor, "SETTINGS_REVISION_CONFLICT", attemptedKeys);
-        return NextResponse.json(
-          {
-            error: {
-              code: "SETTINGS_REVISION_CONFLICT",
-              message: "Settings changed since this snapshot; refresh and retry",
-              currentRevision: error.currentRevision,
-            },
-          },
-          { status: 409, headers: settingsResponseHeaders(error.currentRevision) }
-        );
-      }
-      throw error;
-    }
+    const written = await writeSettings(ctx, body, expectedRevision);
+    if ("response" in written) return written.response;
 
-    // Sync CLIProxyAPI settings to upstream_proxy_config table
-    const cpaUrl = rawBody.cliproxyapi_url as string | undefined;
-    const cpaFallback = rawBody.cliproxyapi_fallback_enabled as boolean | undefined;
-    if (cpaUrl && typeof cpaUrl === "string") {
-      const urlValidation = validateProxyUrl(cpaUrl);
-      if (urlValidation.valid === false) {
-        emitSettingsFailureAudit(request, actor, "CLIPROXY_URL_INVALID", attemptedKeys);
-        return NextResponse.json(
-          { error: `Invalid CLIProxyAPI URL: ${urlValidation.error}` },
-          { status: 400 }
-        );
-      }
-      // Invalidate the executor's URL cache so it picks up the new URL immediately
-      clearCliproxyapiUrlCache();
-    }
+    const settings = written.settings as Record<string, unknown>;
+    const cliproxyRejection = await syncCliproxyapi(ctx, rawBody, settings);
+    if (cliproxyRejection) return cliproxyRejection;
 
-    const cpaModelMapping = rawBody.cliproxyapi_model_mapping as Record<string, string> | undefined;
-
-    if (cpaFallback !== undefined || cpaUrl !== undefined || cpaModelMapping !== undefined) {
-      const enabled =
-        cpaFallback ?? (settings as Record<string, unknown>).cliproxyapi_fallback_enabled;
-      const mode = enabled ? "fallback" : "native";
-
-      // Get all distinct active provider IDs so each one gets its own
-      // upstream_proxy_config row. chatCore reads per-provider config
-      // (e.g. getUpstreamProxyConfig("anthropic")), not a single global row.
-      // Embedded service IDs are not real routing targets and must be skipped.
-      const EMBEDDED_SERVICE_IDS = new Set(["cliproxyapi", "9router"]);
-      const activeConnections = await getProviderConnections({ isActive: true });
-      const activeProviderIds = [
-        ...new Set(
-          activeConnections
-            .map((c: Record<string, unknown>) => c.provider as string)
-            .filter((id: string) => !EMBEDDED_SERVICE_IDS.has(id))
-        ),
-      ];
-
-      for (const providerId of activeProviderIds) {
-        await upsertUpstreamProxyConfig({
-          providerId,
-          mode,
-          enabled: !!enabled,
-          ...(cpaModelMapping !== undefined ? { cliproxyapiModelMapping: cpaModelMapping } : {}),
-        });
-      }
-
-      // Update the "cliproxyapi" sentinel row used by GET /api/settings to
-      // retrieve cliproxyapi_model_mapping. This row is NOT used for routing
-      // (chatCore reads per-real-provider rows above); it exists solely as
-      // storage for the global model-mapping blob.
-      await upsertUpstreamProxyConfig({
-        providerId: "cliproxyapi",
-        mode,
-        enabled: !!enabled,
-        ...(cpaModelMapping !== undefined ? { cliproxyapiModelMapping: cpaModelMapping } : {}),
-      });
-    }
-
-    // Audit success — diff of changed keys only. Idempotent PATCH (no diff)
-    // intentionally writes NO row (spec §Observability + AC-9/AC-11).
-    try {
-      const afterSnapshot = settings as Record<string, unknown>;
-      const candidateKeys = Object.keys(body);
-      const diff = computeSettingsDiff(beforeSnapshot, afterSnapshot, candidateKeys);
-      if (Object.keys(diff).length > 0) {
-        const { ipAddress, requestId } = getAuditRequestContext(request);
-        logAuditEvent({
-          action: "settings.update",
-          actor,
-          target: "settings",
-          resourceType: "settings",
-          status: "success",
-          ipAddress: ipAddress || undefined,
-          requestId: requestId || undefined,
-          details: { diff },
-        });
-      }
-    } catch {
-      // Audit failure must never break the write — swallow.
-    }
-
-    const {
-      password,
-      [SESSIONS_VALID_AFTER_SETTING]: _sessionsValidAfter,
-      [REVOKED_SESSIONS_SETTING]: _revokedSessions,
-      // A JSON import can store an unknown setting named `ignoredKeys`. Only this request's
-      // dropped keys may fill the response field.
-      ignoredKeys: _storedIgnoredKeys,
-      ...safeSettings
-    } = settings;
-    const settingsRevision = await getSettingsRevision();
-    const response = NextResponse.json(
-      {
-        ...maskSecretSettings(safeSettings),
-        settingsRevision,
-        ...(ignoredKeys.length > 0 ? { ignoredKeys } : {}),
-      },
-      { headers: settingsResponseHeaders(settingsRevision) }
-    );
-    // The browser that changed the password keeps its own session: swap its cookie for one issued
-    // after the cutoff instead of signing the operator out of the page they are on.
-    const secret = getDashboardJwtSecret();
-    if (callerSession && secret) {
-      const forwardedProto = (request.headers.get("x-forwarded-proto") || "")
-        .split(",")[0]
-        .trim()
-        .toLowerCase();
-      response.cookies.set(DASHBOARD_SESSION_COOKIE, await mintDashboardSessionToken(secret), {
-        httpOnly: true,
-        secure:
-          process.env.AUTH_COOKIE_SECURE === "true" ||
-          forwardedProto === "https" ||
-          new URL(request.url).protocol === "https:",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 30,
-      });
-    }
-    return response;
+    auditSettingsUpdate(request, actor, beforeSnapshot, settings, body);
+    return await buildPatchResponse(request, written.settings, ignoredKeys, callerSession);
   } catch (error) {
     console.log("Error updating settings:", error);
     return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
