@@ -248,6 +248,7 @@ jobs:
     # inherit the implicit success() check and skip the whole build with it.
     if: >-
       !cancelled() && github.event_name != 'schedule' &&
+      github.repository == 'cheaper-inference/OmniRoute' &&
       needs.prepare.result == 'success' && needs.prepare.outputs.skip != 'true' &&
       (needs.runner-preflight.result == 'success' || needs.runner-preflight.result == 'skipped') &&
       (github.event_name != 'schedule' || github.repository == 'cheaper-inference/OmniRoute')
@@ -533,6 +534,7 @@ jobs:
     # images built (run 41703618029, 2026-11-03).
     if: >-
       !cancelled() && github.event_name != 'schedule' &&
+      github.repository == 'cheaper-inference/OmniRoute' &&
       needs.prepare.result == 'success' && needs.build.result == 'success' &&
       needs.prepare.outputs.skip != 'true' &&
       (github.event_name != 'schedule' || github.repository == 'cheaper-inference/OmniRoute')
