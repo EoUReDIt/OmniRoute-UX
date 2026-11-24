@@ -153,7 +153,7 @@ export function normalizeRequestQueueSettings(
   });
   const failoverHintless429 = toBoolean(
     record.failoverHintless429,
-    fallback.failoverHintless429 ?? true
+    fallback.failoverHintless429 ?? false
   );
 
   return {

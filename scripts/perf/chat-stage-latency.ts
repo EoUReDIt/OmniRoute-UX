@@ -254,6 +254,7 @@ const POLICY_ALT_N = 8;
 const POLICY_SOLO_N = 6;
 const POLICY_RETRY_AFTER_N = 4;
 const POLICY_BURST_N = 12;
+const POLICY_SHARED_BURST_N = 6;
 const POLICY_BURST_MAX_PER_WINDOW = 5;
 const POLICY_BURST_WINDOW_MS = 1000;
 
@@ -276,7 +277,7 @@ async function runPolicyCompare(input: {
   const { clearAllModelLockouts } = await import("../../open-sse/services/accountFallback.ts");
   const createdNodes = new Set<string>();
 
-  async function seed(prefix: string, token: string, priority: number) {
+  async function seed(prefix: string, token: string, priority: number, email?: string) {
     const providerId = `openai-compatible-chat-bench-${prefix}`;
     if (!createdNodes.has(providerId)) {
       createdNodes.add(providerId);
@@ -296,6 +297,7 @@ async function runPolicyCompare(input: {
       apiKey: token,
       isActive: true,
       testStatus: "active",
+      ...(email ? { email } : {}),
       priority,
       providerSpecificData: { baseUrl: mock.baseUrl, apiType: "chat" },
     });
@@ -429,6 +431,18 @@ async function runPolicyCompare(input: {
     const solo = await seed(`pc-${tag}-solo`, `pc-${tag}-solo`, 1);
     const burstA = await seed(`pc-${tag}-burst`, `pc-${tag}-burst-a`, 1);
     const burstB = await seed(`pc-${tag}-burst`, `pc-${tag}-burst-b`, 2);
+    const sharedA = await seed(
+      `pc-${tag}-shared`,
+      `pc-${tag}-shared-a`,
+      1,
+      `shared-${tag}@bench.example`
+    );
+    const sharedB = await seed(
+      `pc-${tag}-shared`,
+      `pc-${tag}-shared-b`,
+      2,
+      `shared-${tag}@bench.example`
+    );
     const hinted = await seed(`pc-${tag}-hint`, `pc-${tag}-hint`, 1);
 
     mock.setBehavior(`pc-${tag}-warm-ok`, { status: 200, delayMs: MOCK_DELAY_MS });
@@ -461,6 +475,15 @@ async function runPolicyCompare(input: {
         limitDelayMs: 5,
       },
     });
+    const sharedBurst = {
+      id: `shared-${tag}`,
+      maxPerWindow: POLICY_BURST_MAX_PER_WINDOW,
+      windowMs: POLICY_BURST_WINDOW_MS,
+      okDelayMs: 30,
+      limitDelayMs: 5,
+    };
+    mock.setBehavior(`pc-${tag}-shared-a`, { status: 200, delayMs: 30, burst: sharedBurst });
+    mock.setBehavior(`pc-${tag}-shared-b`, { status: 200, delayMs: 30, burst: sharedBurst });
     mock.setBehavior(`pc-${tag}-hint`, {
       status: 429,
       delayMs: 20,
@@ -514,6 +537,17 @@ async function runPolicyCompare(input: {
     const upstream429 = Math.max(0, (afterCounts["429"] ?? 0) - (beforeCounts["429"] ?? 0));
     const upstream200 = Math.max(0, (afterCounts["200"] ?? 0) - (beforeCounts["200"] ?? 0));
 
+    console.error(`[policy-compare] ${policy.name}: shared-email burst n=${POLICY_SHARED_BURST_N}`);
+    await revive([sharedA.connectionId, sharedB.connectionId]);
+    const beforeShared = mock.takeUpstreamCounts();
+    const sharedRows = await Promise.all(
+      Array.from({ length: POLICY_SHARED_BURST_N }, (_, i) =>
+        postDirect(sharedA.model, `shared ${tag} ${i} ${started}`)
+      )
+    );
+    const afterShared = mock.takeUpstreamCounts();
+    const sharedOk = sharedRows.filter((row) => row.ok);
+
     results[policy.name] = {
       settings: {
         minTimeBetweenRequestsMs: policy.minTimeBetweenRequestsMs,
@@ -539,6 +573,18 @@ async function runPolicyCompare(input: {
         totalMsAll: summarize(burstRows.map((row) => row.totalMs)),
         statuses: burstRows.map((row) => row.status),
       },
+      burstSharedEmail: {
+        attempted: sharedRows.length,
+        ok: sharedOk.length,
+        failed: sharedRows.length - sharedOk.length,
+        successRate: round(sharedOk.length / sharedRows.length),
+        upstream429: Math.max(0, (afterShared["429"] ?? 0) - (beforeShared["429"] ?? 0)),
+        upstream200: Math.max(0, (afterShared["200"] ?? 0) - (beforeShared["200"] ?? 0)),
+        keys: 2,
+        sharedEmail: true,
+        totalMs: summarize(sharedOk.map((row) => row.totalMs)),
+        totalMsAll: summarize(sharedRows.map((row) => row.totalMs)),
+      },
     };
     void burstB;
   }
@@ -555,6 +601,7 @@ async function runPolicyCompare(input: {
       first429WithoutAlternate: POLICY_SOLO_N,
       retryAfterHonored: POLICY_RETRY_AFTER_N,
       burst: POLICY_BURST_N,
+      burstSharedEmail: POLICY_SHARED_BURST_N,
     },
     proposal: {
       minTimeBetweenRequestsMs: { old: 350, new: 100 },
@@ -563,12 +610,14 @@ async function runPolicyCompare(input: {
     },
     policies: results,
     notes: [
-      "old is minTimeBetweenRequestsMs 350 and failoverHintless429 false (previous defaults).",
-      "new is minTimeBetweenRequestsMs 100 and failoverHintless429 true.",
+      "old is the shipped default: minTimeBetweenRequestsMs 350 and failoverHintless429 false.",
+      "new is the opt-in proposal: minTimeBetweenRequestsMs 100 and failoverHintless429 true. It is not the default.",
+      "Hintless failover asks credential selection with the current connection excluded, refuses a sibling that shares an email, org, workspace, account, or project, and does not defer again after the request has already switched accounts.",
       "Same-key RETRY_CONFIG stays maxAttempts 2 and delayMs 2000. Jitter draws from half of delayMs up to delayMs when no Retry-After is present.",
       "first429* samples each clear connection cooldown and model lockouts first, so every sample is a first 429, not a later request that already skipped the bad key.",
       "retryAfterHonored sends Retry-After: 1 on the first upstream response for that sample, then 200. gapBetweenHopsMs is the wait between those hops.",
-      "burstAboveFivePerSecond fires 12 concurrent requests at two keys of one provider. The mock returns 429 with no Retry-After once more than 5 requests have started inside 1000ms, counting both keys together.",
+      "burstAboveFivePerSecond fires 12 concurrent requests at two independent keys. The mock returns 429 with no Retry-After once more than 5 requests have started inside 1000ms, counting both keys together.",
+      "burstSharedEmail is that window with both keys on one email, so opt-in failover must not treat the sibling as another quota.",
       "totalMs percentiles are successful responses only. totalMsAll includes failures. upstream429 counts mock 429 responses, including same-key retries.",
       "successRate is ok/attempted. null only when attempted is 0.",
     ],

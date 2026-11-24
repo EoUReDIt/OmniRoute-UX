@@ -24,6 +24,7 @@ import {
   isValidApiKey,
   extractSessionAffinityKey,
 } from "../services/auth";
+import { shouldDeferHintless429 } from "../services/hintless429Deferral";
 import { resolveClientApiKey } from "../services/clientApiKeyResolver";
 import {
   getRuntimeProviderProfile,
@@ -2369,9 +2370,26 @@ async function handleSingleModelChat(
             providerProfile,
             cachedSettings: runtimeOptions.cachedSettings,
             skipUpstreamRetry: runtimeOptions.skipUpstreamRetry ?? false,
-            failoverHintless429:
-              resolveResilienceSettings(cachedRuntimeSettings).requestQueue.failoverHintless429 ===
-              true,
+            resolveDeferHintless429: () =>
+              shouldDeferHintless429({
+                enabled:
+                  resolveResilienceSettings(cachedRuntimeSettings).requestQueue
+                    .failoverHintless429 === true,
+                forced: hasForcedConnection,
+                alreadyFailedOver: accountFallbacks > 0,
+                provider,
+                model: effectiveModel,
+                currentConnectionId: credentials.connectionId,
+                current: credentials,
+                allowedConnections: effectiveAllowedConnections,
+                excludedConnectionIds: Array.from(excludedConnectionIds),
+                requireToolCalling: hasQoderCallerTools(body),
+                sessionKey: museOwner ? null : occupancySessionKey,
+                preferredConnectionIds: apiKeyInfo?.preferredConnections ?? null,
+                allowRateLimitedConnections:
+                  runtimeOptions.allowRateLimitedConnection === true || forceLiveComboTest,
+                bypassQuotaPolicy: forceLiveComboTest || bypassProviderQuotaPolicy,
+              }),
             correlationId: runtimeOptions?.correlationId ?? null,
             conversationId: runtimeOptions?.conversationId ?? null,
             modelPinned: runtimeOptions?.modelPinned ?? false,

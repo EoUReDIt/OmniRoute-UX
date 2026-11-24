@@ -350,17 +350,16 @@ export const PROVIDER_PROFILES = {
 // A learned spacing that is slower than this floor still wins. Headroom relaxation (#9763)
 // will not go below the floor. The 60 RPM reservoir and concurrency cap are unchanged.
 //
-// minTimeBetweenRequests was 200, then 350 in #2903 (bundled with a RAM reduction:
-// fewer Bottleneck jobs queued at once). On a warm 200ms upstream that 350ms
-// start-to-start gap added ~130ms before the socket (docs/ux-simplification/PHASE1 §4.2).
-// 100ms is the aggressive resilience profile's gap and the floor already asserted
-// by tests/unit/thundering-herd.test.ts. Sequential calls slower than 100ms no
-// longer queue. Restore the previous pad with
-// resilienceSettings.requestQueue.minTimeBetweenRequestsMs = 350.
-export const LEGACY_MIN_TIME_BETWEEN_REQUESTS_MS = 350;
+// minTimeBetweenRequests was 200, then 350 in #2903 (bundled with a RAM reduction).
+// A warm 200ms upstream pays about 130ms of that gap (Phase 1 §4.2). 100ms stays
+// opt-in: pruneResilienceSettingsToProvided does not store a value equal to the
+// default, so existing installs have no saved 350. Changing this constant would
+// move those installs, and headroom relaxation would follow the new floor.
+// Operators set requestQueue.minTimeBetweenRequestsMs to OPT_IN_MIN_TIME_BETWEEN_REQUESTS_MS.
+export const OPT_IN_MIN_TIME_BETWEEN_REQUESTS_MS = 100;
 export const DEFAULT_API_LIMITS = {
   requestsPerMinute: 60, // 60 RPM (reduced from 100 — saves Bottleneck queue memory)
-  minTimeBetweenRequests: 100,
+  minTimeBetweenRequests: 350, // 350ms minimum gap (increased from 200 in #2903)
   concurrentRequests: 6, // Max 6 parallel per provider (reduced from 10)
 };
 

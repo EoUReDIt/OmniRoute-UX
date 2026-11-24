@@ -243,6 +243,23 @@ function RequestQueueCard({
       </div>
 
       <p className="mb-4 text-sm text-text-muted">{t("resilienceRequestQueueDesc")}</p>
+      <div className="mb-4">
+        <Button
+          size="sm"
+          variant="secondary"
+          disabled={saving}
+          onClick={() =>
+            onSave({
+              ...value,
+              minTimeBetweenRequestsMs: 350,
+              failoverHintless429: false,
+            })
+          }
+        >
+          {t("resilienceRestoreStandardPacing")}
+        </Button>
+        <p className="mt-2 text-sm text-text-muted">{t("resilienceRestoreStandardPacingDesc")}</p>
+      </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {editing ? (

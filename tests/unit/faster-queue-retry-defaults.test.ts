@@ -3,51 +3,53 @@ import assert from "node:assert/strict";
 
 import {
   DEFAULT_API_LIMITS,
-  LEGACY_MIN_TIME_BETWEEN_REQUESTS_MS,
+  OPT_IN_MIN_TIME_BETWEEN_REQUESTS_MS,
 } from "../../open-sse/config/constants.ts";
 import { BaseExecutor } from "../../open-sse/executors/base.ts";
 import { DefaultExecutor } from "../../open-sse/executors/default.ts";
 import {
   DEFAULT_RESILIENCE_SETTINGS,
+  effectiveRequestQueueSnapshot,
   resolveResilienceSettings,
 } from "../../src/lib/resilience/settings.ts";
+import { shouldTripProviderBreakerForResult } from "../../src/sse/handlers/chatPredicates.ts";
 
-test("proposed queue defaults are 100ms and hintless-429 failover, with the old values restorable", () => {
-  assert.equal(DEFAULT_API_LIMITS.minTimeBetweenRequests, 100);
-  assert.equal(LEGACY_MIN_TIME_BETWEEN_REQUESTS_MS, 350);
-  assert.equal(DEFAULT_RESILIENCE_SETTINGS.requestQueue.minTimeBetweenRequestsMs, 100);
-  assert.equal(DEFAULT_RESILIENCE_SETTINGS.requestQueue.failoverHintless429, true);
-  assert.equal(DEFAULT_RESILIENCE_SETTINGS.requestQueue.requestsPerMinute, 60);
-  assert.equal(DEFAULT_RESILIENCE_SETTINGS.requestQueue.concurrentRequests, 6);
+test("the request gap stays 350 and hintless failover stays off unless the operator opts in", () => {
+  assert.equal(DEFAULT_API_LIMITS.minTimeBetweenRequests, 350);
+  assert.equal(OPT_IN_MIN_TIME_BETWEEN_REQUESTS_MS, 100);
+  assert.equal(DEFAULT_RESILIENCE_SETTINGS.requestQueue.minTimeBetweenRequestsMs, 350);
+  assert.equal(DEFAULT_RESILIENCE_SETTINGS.requestQueue.failoverHintless429, false);
 
   const fresh = resolveResilienceSettings({});
-  assert.equal(fresh.requestQueue.minTimeBetweenRequestsMs, 100);
-  assert.equal(fresh.requestQueue.failoverHintless429, true);
+  assert.equal(fresh.requestQueue.minTimeBetweenRequestsMs, 350);
+  assert.equal(fresh.requestQueue.failoverHintless429, false);
+  assert.deepEqual(effectiveRequestQueueSnapshot({}), {
+    minTimeBetweenRequestsMs: 350,
+    failoverHintless429: false,
+  });
 
-  const restored = resolveResilienceSettings({
+  const optedIn = resolveResilienceSettings({
     resilienceSettings: {
-      requestQueue: { minTimeBetweenRequestsMs: 350, failoverHintless429: false },
+      requestQueue: { minTimeBetweenRequestsMs: 100, failoverHintless429: true },
     },
   });
-  assert.equal(restored.requestQueue.minTimeBetweenRequestsMs, 350);
-  assert.equal(restored.requestQueue.failoverHintless429, false);
-  assert.equal(restored.requestQueue.requestsPerMinute, DEFAULT_API_LIMITS.requestsPerMinute);
+  assert.equal(optedIn.requestQueue.minTimeBetweenRequestsMs, 100);
+  assert.equal(optedIn.requestQueue.failoverHintless429, true);
 });
 
 async function execute429(input: {
   deferHintless429?: boolean;
+  resolveDeferHintless429?: () => Promise<boolean>;
   responses: () => Response;
   delayMs?: number;
 }) {
   const originalFetch = globalThis.fetch;
   const originalDelay = BaseExecutor.RETRY_CONFIG.delayMs;
   let calls = 0;
-  const at: number[] = [];
   if (input.delayMs !== undefined) {
     (BaseExecutor.RETRY_CONFIG as { delayMs: number }).delayMs = input.delayMs;
   }
   globalThis.fetch = (async () => {
-    at.push(Date.now());
     calls += 1;
     return input.responses();
   }) as typeof fetch;
@@ -59,8 +61,14 @@ async function execute429(input: {
       stream: false,
       credentials: { apiKey: "synthetic-key", connectionId: "conn-a" },
       deferHintless429: input.deferHintless429,
+      resolveDeferHintless429: input.resolveDeferHintless429,
     });
-    return { status: result.response.status, calls, at, elapsed: Date.now() - started };
+    return {
+      status: result.response.status,
+      body: await result.response.text(),
+      calls,
+      elapsed: Date.now() - started,
+    };
   } finally {
     globalThis.fetch = originalFetch;
     (BaseExecutor.RETRY_CONFIG as { delayMs: number }).delayMs = originalDelay;
@@ -71,47 +79,93 @@ function hintless429() {
   return new Response(JSON.stringify({ error: { message: "rate limited" } }), { status: 429 });
 }
 
-test("a hintless 429 still retries the same key when no alternate is declared", async () => {
+test("a hintless 429 still retries the same key when deferral is off", async () => {
   const absent = await execute429({ responses: hintless429, delayMs: 0 });
   assert.equal(absent.calls, 1 + BaseExecutor.RETRY_CONFIG.maxAttempts);
-  const explicit = await execute429({
+  const declined = await execute429({
     responses: hintless429,
     delayMs: 0,
-    deferHintless429: false,
+    resolveDeferHintless429: async () => false,
   });
-  assert.equal(explicit.calls, 1 + BaseExecutor.RETRY_CONFIG.maxAttempts);
+  assert.equal(declined.calls, 1 + BaseExecutor.RETRY_CONFIG.maxAttempts);
 });
 
-test("a hintless 429 is returned after one call when an alternate was declared", async () => {
-  const { status, calls } = await execute429({
+test("a live resolver that accepts at 429 time returns one upstream 429", async () => {
+  const { status, body, calls } = await execute429({
     responses: hintless429,
     delayMs: 0,
-    deferHintless429: true,
+    resolveDeferHintless429: async () => true,
   });
   assert.equal(status, 429);
+  assert.match(body, /rate limited/);
   assert.equal(calls, 1);
+  assert.equal(
+    shouldTripProviderBreakerForResult({ status: 429, error: "rate limited" }, false, false),
+    false
+  );
 });
 
-test("Retry-After inside the retry window is waited even when an alternate was declared", async () => {
+test("a RetryInfo body hint is waited and the deferral resolver is not called", async () => {
+  let asked = 0;
   let step = 0;
   const { status, calls, elapsed } = await execute429({
-    deferHintless429: true,
+    resolveDeferHintless429: async () => {
+      asked += 1;
+      return true;
+    },
     responses: () => {
       step += 1;
       if (step === 1) {
-        return new Response(JSON.stringify({ error: { message: "slow down" } }), {
-          status: 429,
-          headers: { "retry-after": "0.25" },
-        });
+        return new Response(
+          JSON.stringify({
+            error: {
+              code: 429,
+              message: "slow down",
+              status: "RESOURCE_EXHAUSTED",
+              details: [
+                { "@type": "type.googleapis.com/google.rpc.RetryInfo", retryDelay: "0.25s" },
+              ],
+            },
+          }),
+          { status: 429, headers: { "Content-Type": "application/json" } }
+        );
       }
       return new Response(JSON.stringify({ ok: true }), { status: 200 });
     },
   });
+  assert.equal(asked, 0);
   assert.equal(status, 200);
   assert.equal(calls, 2);
-  assert.ok(elapsed >= 180, `expected the 250ms Retry-After to be honored, elapsed ${elapsed}ms`);
-  assert.ok(
-    elapsed < 900,
-    `expected not to fall back to the 2000ms same-key delay, elapsed ${elapsed}ms`
-  );
+  assert.ok(elapsed >= 180, `elapsed ${elapsed}`);
+  assert.ok(elapsed < 900, `elapsed ${elapsed}`);
+});
+
+test("concurrent executors that are told not to defer each keep the same-key retry", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDelay = BaseExecutor.RETRY_CONFIG.delayMs;
+  (BaseExecutor.RETRY_CONFIG as { delayMs: number }).delayMs = 0;
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return hintless429();
+  }) as typeof fetch;
+  try {
+    const results = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        new DefaultExecutor("openai").execute({
+          model: "gpt-4o-mini",
+          body: { messages: [{ role: "user", content: "hi" }] },
+          stream: false,
+          credentials: { apiKey: "synthetic-key", connectionId: "conn-a" },
+          resolveDeferHintless429: async () => false,
+        })
+      )
+    );
+    assert.equal(results.length, 6);
+    for (const result of results) assert.equal(result.response.status, 429);
+    assert.equal(calls, 6 * (1 + BaseExecutor.RETRY_CONFIG.maxAttempts));
+  } finally {
+    globalThis.fetch = originalFetch;
+    (BaseExecutor.RETRY_CONFIG as { delayMs: number }).delayMs = originalDelay;
+  }
 });

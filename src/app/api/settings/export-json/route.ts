@@ -16,6 +16,7 @@ import {
   getAllDomainBudgets,
 } from "@/lib/db/usageAnalytics";
 import { isFreeModel, providerHasFreeModels } from "@/shared/utils/freeModels";
+import { effectiveRequestQueueSnapshot } from "@/lib/resilience/settings";
 
 /**
  * When `settings.hidePaidModels === true`, exports must not leak paid model ids
@@ -97,6 +98,11 @@ export async function GET(request: Request) {
         exportedAt: new Date().toISOString(),
         version: "omniroute-v3-legacy-export",
         includesHistory: includeHistory,
+        // Import applies `settings` only. Keys the operator never saved are absent
+        // there and keep the code defaults on restore (350 ms, failover off).
+        // This snapshot records those effective values without writing them into
+        // the stored settings the operator did not choose.
+        effectiveRequestQueue: effectiveRequestQueueSnapshot(rawSettings),
       },
     };
 

@@ -475,7 +475,7 @@ async function handleChatCoreInner({
   comboExecutionKey = null,
   cachedSettings = null,
   skipUpstreamRetry = false,
-  failoverHintless429 = undefined,
+  resolveDeferHintless429 = undefined,
   createPiiTransform = null,
   correlationId = null,
   conversationId = null,
@@ -2743,11 +2743,7 @@ async function handleChatCoreInner({
     resilienceSettings,
     settings,
     skipUpstreamRetry,
-    failoverHintless429:
-      (typeof failoverHintless429 === "boolean"
-        ? failoverHintless429
-        : resilienceSettings.requestQueue.failoverHintless429 === true) && !forcedConnectionId,
-    allowedConnectionIds: Array.isArray(allowedConnections) ? allowedConnections : null,
+    resolveDeferHintless429,
     requestUpstreamStartTimeoutMs,
     stream,
     streamController,

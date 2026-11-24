@@ -7,7 +7,6 @@ import type {
  * implementation; the only change is that closed-over request state arrives
  * through deps.
  */
-import { hasHealthyAlternateConnection } from "../../services/hintless429Failover.ts";
 import { markEmptyTurnExecution, inheritEmptyTurnPolicy } from "../../utils/emptyTurnPolicy.ts";
 import { noteUpstreamDispatch } from "../../utils/proxyFetch.ts";
 
@@ -160,9 +159,8 @@ export type ExecuteProviderRequestDeps = {
   settings: Record<string, unknown> | null | undefined;
   toolDisclosure?: ToolDisclosureConfig | null;
   skipUpstreamRetry: boolean;
-  /** From requestQueue.failoverHintless429, already false when the connection is pinned. */
-  failoverHintless429?: boolean;
-  allowedConnectionIds?: string[] | null;
+  /** Invoked when a hintless 429 arrives. Undefined keeps the same-key wait. */
+  resolveDeferHintless429?: () => Promise<boolean>;
   requestUpstreamStartTimeoutMs?: number;
   stream: boolean;
   streamController: { signal: AbortSignal };
@@ -224,15 +222,7 @@ export async function executeProviderRequest(
     userAgent: _userAgent,
   } = deps;
   const body = rawBody;
-  const deferHintless429 =
-    deps.failoverHintless429 === true
-      ? await hasHealthyAlternateConnection({
-          provider,
-          connectionId: connectionId || "",
-          model: modelToCall,
-          allowedConnectionIds: deps.allowedConnectionIds ?? null,
-        })
-      : false;
+  const resolveDeferHintless429 = deps.resolveDeferHintless429;
   const recordResponseKeyHealth = (
     response: Response,
     creds: Record<string, unknown>,
@@ -422,7 +412,7 @@ export async function executeProviderRequest(
                         clientResponseFormat,
                         onCredentialsRefreshed: fencedCredentialsRefreshed,
                         skipUpstreamRetry,
-                        deferHintless429,
+                        resolveDeferHintless429,
                         contextEditing: { enabled: contextEditingEnabled },
                         correlationId,
                       });
@@ -634,7 +624,7 @@ export async function executeProviderRequest(
                             clientResponseFormat,
                             onCredentialsRefreshed: fencedCredentialsRefreshed,
                             skipUpstreamRetry,
-                            deferHintless429,
+                            resolveDeferHintless429,
                             contextEditing: { enabled: contextEditingEnabled },
                             correlationId,
                           });

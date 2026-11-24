@@ -239,6 +239,12 @@ export type ExecuteInput = {
    * Absent or false keeps the same-key RETRY_CONFIG wait.
    */
   deferHintless429?: boolean;
+  /**
+   * Called when a 429 has no retry hint, so the decision sees selection at
+   * that moment. A thrown or false result keeps the same-key wait. A body or
+   * header hint is honored and this is not called.
+   */
+  resolveDeferHintless429?: () => Promise<boolean>;
   /** In-process capability; never accepted from an HTTP body or client header. */
   validationDispatch?: StrictValidationDispatch;
   /** Request-scoped id for log attribution; absent off the chat path, never fabricated. */
@@ -778,6 +784,7 @@ export class BaseExecutor {
       clientHeaders,
       skipUpstreamRetry = false,
       deferHintless429 = false,
+      resolveDeferHintless429,
       onCredentialsRefreshed,
       contextEditing,
     } = input;
@@ -1852,7 +1859,17 @@ export class BaseExecutor {
         if (!skipUpstreamRetry && response.status === HTTP_STATUS.RATE_LIMITED) {
           const hintMs = await readRateLimitRetryHintMs(response);
           const hintExceedsWindow = hintMs !== null && hintMs > INTRA_RETRY_MAX_HINT_MS;
-          const handOffHintless = deferHintless429 === true && hintMs === null;
+          let handOffHintless = false;
+          if (hintMs === null && (retryAttemptsByUrl[urlIndex] ?? 0) === 0) {
+            if (resolveDeferHintless429) {
+              handOffHintless = await resolveDeferHintless429().then(
+                (defer) => defer === true,
+                () => false
+              );
+            } else {
+              handOffHintless = deferHintless429 === true;
+            }
+          }
           if (
             !hintExceedsWindow &&
             !handOffHintless &&
