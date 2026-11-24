@@ -2,6 +2,8 @@
 
 This repository is [EoUReDIt/OmniRoute-UX](https://github.com/EoUReDIt/OmniRoute-UX), a fork of [cheaper-inference/OmniRoute](https://github.com/cheaper-inference/OmniRoute). The GitHub API `parent.full_name` for this repository is `cheaper-inference/OmniRoute` (read 2026-11-24). `https://github.com/diegosouzapw/OmniRoute` returns **301** to `https://github.com/cheaper-inference/OmniRoute`.
 
+**This fork deviates on purpose.** It does not send changes to the source repository and does not take changes from it. Nothing is merged down from the source unless the owner decides it serves this fork's goals. GitHub still shows the fork link; that link does not mean this repository follows the source.
+
 The default branch is `release/v3.8.55` (`default_branch` on the fork).
 
 **Purpose.** A novice-friendly UX: a Simple view, and a switch back to the Full view, where core features are hidden and not removed. That design is [`docs/ux-simplification/PHASE1-feature-map-and-design.md`](docs/ux-simplification/PHASE1-feature-map-and-design.md), merged in [PR #1](https://github.com/EoUReDIt/OmniRoute-UX/pull/1). The note says screens may be tucked away in the simple surface and stay reachable, working the same way in the full surface. It also says the note doesn't change the gateway, and that the Simple view build wasn't started in that merge.
@@ -13,7 +15,7 @@ The default branch is `release/v3.8.55` (`default_branch` on the fork).
 - [PR #2](https://github.com/EoUReDIt/OmniRoute-UX/pull/2): proposal for an opt-in faster gap and gated hintless-429 failover. PR #1 left the 350 ms queue gap and the 2000 ms same-key retry unchanged.
 - CI-fix PRs [#38](https://github.com/EoUReDIt/OmniRoute-UX/pull/38) and [#17](https://github.com/EoUReDIt/OmniRoute-UX/pull/17), awaiting an owner decision. See `HANDOFF.md`.
 
-**What's already merged, compared with upstream `release/v3.8.55`.** Measured 2026-11-24 against upstream commit `6715f3ce` (`Merge pull request #21102`). Merge-base `16c9247c`. At `a5fbc2fa` ([PR #31](https://github.com/EoUReDIt/OmniRoute-UX/pull/31)) this branch was 158 commits ahead of that base and 1521 commits behind upstream. Those counts were not re-measured at the current tip `24550c54` ([PR #36](https://github.com/EoUReDIt/OmniRoute-UX/pull/36)). It's not current upstream plus a small patch.
+**How far this fork has diverged (snapshot).** Compared with the source's `release/v3.8.55`, measured 2026-11-24 against upstream commit `6715f3ce` (`Merge pull request #21102`). Merge-base `16c9247c`. At `a5fbc2fa` ([PR #31](https://github.com/EoUReDIt/OmniRoute-UX/pull/31)) this branch was 158 commits ahead of that base and 1521 commits behind upstream. Those counts were not re-measured at the current tip `24550c54` ([PR #36](https://github.com/EoUReDIt/OmniRoute-UX/pull/36)). This is its own codebase, not the source plus a small patch.
 
 Fork-only changes since the merge-base:
 
@@ -1407,7 +1409,7 @@ Métricas canônicas em 2026-10-18: **1.976 vídeos únicos** · **20.220.289 vi
 | 🟢 **WhatsApp — 🇧🇷 Brasil**                | [entrar no grupo](https://chat.whatsapp.com/KWgatljAjmbELQory59Oti?s=cl&p=a&mlu=4)                                                                                           |
 | 🌍 **Website**                             | [omniroute.online](https://omniroute.online)                                                                                                                                 |
 | 🌍 **🌍StHub OmniRoute Community (free)**  | [portal sthub](https://portal.sthub.com.br/communities/groups/st-hub/channels/Omniroute-World-8kRjmK)                                                                        |
-| 📦 **Source code**                         | [github.com/EoUReDIt/OmniRoute-UX](https://github.com/EoUReDIt/OmniRoute-UX) (fork). Upstream: [cheaper-inference/OmniRoute](https://github.com/cheaper-inference/OmniRoute) |
+| 📦 **Source code**                         | [github.com/EoUReDIt/OmniRoute-UX](https://github.com/EoUReDIt/OmniRoute-UX) (this fork; it deviates from its source on purpose). Source it started from: [cheaper-inference/OmniRoute](https://github.com/cheaper-inference/OmniRoute) |
 | 🐛 **Report a bug**                        | [open an issue](https://github.com/diegosouzapw/OmniRoute/issues) — attach `npm run system-info` output                                                                      |
 | 🤝 **Contribute**                          | [CONTRIBUTING.md](CONTRIBUTING.md) · [Branching & Release Model](docs/ops/BRANCHING_MODEL.md) · pick a `good first issue`                                                    |
 | 💚 **Support the project**                 | [Ways to support ↑](#-support-omniroute) · [GitHub Sponsors](https://github.com/sponsors/diegosouzapw)                                                                       |
