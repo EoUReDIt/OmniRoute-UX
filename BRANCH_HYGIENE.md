@@ -1,45 +1,50 @@
 # Branch hygiene
 
-Verified 2026-11-24 against the GitHub branch and PR APIs. Release tip `24550c54`. Replaces the earlier 2026-11-24 note that cited tip `a5fbc2fa`.
+Verified 2026-11-24 against the GitHub branch and PR APIs. Release tip `0951a9f4` (the #30 merge commit). Replaces the note that cited tip `24550c54`.
 
 ## Rules
 
-| Rule | Fact |
-| --- | --- |
-| Source repo | `cheaper-inference/OmniRoute` is where this fork started. Owner policy (2026-11-24): no upstreaming, and no downstream merges unless the owner decides one serves this fork's goals. Do not add an `upstream` remote, do not use "Sync fork", and do not open PRs there. |
-| Default branch | `release/v3.8.55` (tip `24550c54`). Never delete it. GitHub branch API `protected`: `false`. |
-| Branches | Start each one from `release/v3.8.55`. One feature per branch. Names: `ux/<feature>-<phase>`. |
-| `cursor/*` | Agent branches. Open PR heads also use these names: `cursor/simple-view-phase2-8062` (#30), `cursor/faster-queue-retry-defaults-c1e3` (#2). |
-| Stacked PRs | A PR whose base is not `main` or `release/**` gets no CI: `ci.yml`, `quality.yml` and `api-route-typecheck.yml` run on `pull_request` only for those bases. Retarget before relying on checks (#34 is in this state). |
-| Owner OK | Required before every merge, PR close, branch delete, force-push, and repo settings change. Agents do not auto-delete. Delete a branch only after merge, verification, and owner OK. |
+| Rule                     | Fact                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source repo              | `cheaper-inference/OmniRoute` is where this fork started. Owner policy (2026-11-24): no upstreaming, and no downstream merges unless the owner decides one serves this fork's goals. Do not add an `upstream` remote, do not use "Sync fork", and do not open PRs there.                                                                                                                                                                                                                                                                                                                                   |
+| Default branch           | `release/v3.8.55` (tip `0951a9f4`). Never delete it. GitHub branch API `protected`: `true` (a ruleset the owner set on 2026-11-24; its exact rules were not read here).                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Branches                 | Start each one from `release/v3.8.55`. One feature per branch. Names: `ux/<feature>-<phase>`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `cursor/*`               | Agent branches. The open PR head with this prefix is `cursor/faster-queue-retry-defaults-c1e3` (#2).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Stacked PRs              | A PR whose base is not `main` or `release/**` gets no CI: `ci.yml`, `quality.yml` and `api-route-typecheck.yml` run on `pull_request` only for those bases. GitHub's stacked-PR protection also blocks the API: merging a PR that has another PR stacked on it fails with "Merging stacked PRs via this endpoint is not supported", auto-merge is refused, and the stacked PR's base cannot be changed ("part of a stack"). Merge the bottom PR in the web UI. GitHub then retargets the next one: after #30 merged, #34's base became `release/v3.8.55` and its head moved from `56e9905d` to `49566887`. |
+| Owner OK                 | Required before every merge, PR close, branch delete, force-push, and repo settings change. Agents do not auto-delete.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| Deleting remote branches | Not possible from the agent environment: `git push --delete` is refused with HTTP 403 by the egress proxy, and the GitHub tools have no delete-branch call. The owner deletes them in the GitHub UI (Code → Branches).                                                                                                                                                                                                                                                                                                                                                                                     |
 
 ## Remote branch inventory
 
-| Branch | PR | State | Action |
-| --- | --- | --- | --- |
-| `release/v3.8.55` | n/a | Default. | Keep. |
-| `cursor/simple-view-phase2-8062` | #30 open | Active. CI red. | Keep until #30 resolves. |
-| `ux/settings-export-mask-secrets` | #34 open | Stacked on #30. | Keep. Retarget after #30 merges. |
-| `cursor/faster-queue-retry-defaults-c1e3` | #2 open | Proposal. Needs an owner decision. | Keep. |
-| `merge-safe-fixes-v2` | #38 open | Five CI-fix commits. | Keep until the owner decides. See `HANDOFF.md`. |
-| `ux/ci-infra-fixes-v8` | #17 open | Old CI-fix attempt. | Keep until the owner decides. |
-| `ux/ci-remove-broken-files` | #32 merged | Merged. | Delete candidate. Owner OK pending. |
-| `ux/ci-disable-fork-docker-publish` | #33 merged | Merged. | Delete candidate. Owner OK pending. |
-| `ux/readme-fork-accuracy` | #36 merged | Merged. | Delete candidate. Owner OK pending. |
-| `cursor/ux-simple-mode-phase1-16f6` | #1 merged | Merged. | Delete candidate. Owner OK pending. |
-| `merge-safe-fixes` | #29 closed | Closed, not merged. Replaced by #38. | Delete candidate. Owner OK pending. |
-| `ux/ci-infra-fixes-v2` | #11 closed | Closed, not merged. | Delete candidate. Owner OK pending. |
-| `ux/ci-infra-fixes-v13` | #21 closed | Closed, not merged. | Delete candidate. Owner OK pending. |
+| Branch                                    | Tip        | PR         | State                                                                                          | Action                                               |
+| ----------------------------------------- | ---------- | ---------- | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| `release/v3.8.55`                         | `0951a9f4` | n/a        | Default, protected.                                                                            | Keep.                                                |
+| `claude/magical-pasteur-fgfiyd`           | `41ca7a7a` | #41 open   | `AGENTS.md` policy change. Needs the owner's explicit approval.                                | Keep until #41 resolves.                             |
+| `ux/settings-export-mask-secrets`         | `49566887` | #34 open   | Retargeted to the release branch by GitHub when #30 merged. Three MEDIUM review findings open. | Keep.                                                |
+| `cursor/faster-queue-retry-defaults-c1e3` | `36345d90` | #2 open    | Proposal. Needs an owner decision.                                                             | Keep.                                                |
+| `cursor/simple-view-phase2-8062`          | `2461f400` | #30 merged | In release history.                                                                            | Delete. Approved by the owner, to be done in the UI. |
+| `ux/ci-remove-broken-files`               | `1d125825` | #32 merged | Merged.                                                                                        | Delete. Approved, UI.                                |
+| `ux/ci-disable-fork-docker-publish`       | `97285683` | #33 merged | Merged.                                                                                        | Delete. Approved, UI.                                |
+| `ux/readme-fork-accuracy`                 | `fbe1de6b` | #36 merged | Merged.                                                                                        | Delete. Approved, UI.                                |
+| `cursor/ux-simple-mode-phase1-16f6`       | `01c9b9e6` | #1 merged  | Merged.                                                                                        | Delete. Approved, UI.                                |
+| `merge-safe-fixes`                        | `27706fcf` | #29 closed | Closed, not merged.                                                                            | Delete. Approved, UI.                                |
+| `ux/ci-infra-fixes-v2`                    | `ec366ec5` | #11 closed | Closed, not merged.                                                                            | Delete. Approved, UI.                                |
+| `ux/ci-infra-fixes-v13`                   | `bc2a4b81` | #21 closed | Closed, not merged.                                                                            | Delete. Approved, UI.                                |
+| `merge-safe-fixes-v2`                     | `7aed9db9` | #38 closed | Closed, not merged (2026-11-24).                                                               | Delete candidate. Owner decision.                    |
+| `ux/ci-infra-fixes-v8`                    | `417bb1bd` | #17 closed | Closed, not merged (2026-11-24).                                                               | Delete candidate. Owner decision.                    |
+
+To restore a deleted branch: `git push origin <tip>:refs/heads/<name>` with the tip from this table.
 
 Branches deleted with owner OK on 2026-11-23: `ux/cursor-skills-compression`, `ux/docs-handoff-branch-hygiene`.
 
 ## Corrections to earlier notes
 
-| Old claim | Correction |
-| --- | --- |
-| Upstream `diegosouzapw/OmniRoute` (main) | Upstream is `cheaper-inference/OmniRoute`. |
-| `release/v3.8.55` is protected | `protected` is `false` (2026-11-24). |
-| PR #8 merged | Owner correction: #8 was closed, not merged. |
-| Release tip `a5fbc2fa` | `a5fbc2fa` was the tip after #31. The tip is now `24550c54` (after #32, #33, #36). |
-| #32, #33, #36 open | Merged. |
-| #11, #21, #29 open | Closed, not merged. |
+| Old claim                                | Correction                                           |
+| ---------------------------------------- | ---------------------------------------------------- |
+| Upstream `diegosouzapw/OmniRoute` (main) | The source is `cheaper-inference/OmniRoute`.         |
+| `release/v3.8.55` is protected: `false`  | It is `true` since the owner's ruleset (2026-11-24). |
+| PR #8 merged                             | Owner correction: #8 was closed, not merged.         |
+| Release tip `a5fbc2fa` or `24550c54`     | The tip is `0951a9f4`, after #39, #40 and #30.       |
+| #32, #33, #36 open                       | Merged.                                              |
+| #30 open                                 | Merged at 2026-11-24 22:44 UTC as a merge commit.    |
+| #11, #17, #21, #29, #38 open             | Closed, not merged.                                  |
