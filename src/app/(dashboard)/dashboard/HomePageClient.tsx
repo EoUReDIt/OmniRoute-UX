@@ -25,6 +25,7 @@ import { copyToClipboard } from "@/shared/utils/clipboard";
 import { getProviderDisplayLabel } from "@/shared/utils/providerDisplayLabel";
 import { useIsElectron, useOpenExternal } from "@/shared/hooks/useElectron";
 import { HomeProviderTopologySection } from "./HomeProviderTopologySection";
+import SimpleAdvancedDisclosure from "@/shared/components/dashboardUiMode/SimpleAdvancedDisclosure";
 import { shouldShowProviderTopologyOnHome } from "./homeAppearance";
 import ManualUpdateCommand from "./ManualUpdateCommand";
 import UpdateProgressDialog, { type UpdatePhase, type UpdateStep } from "./UpdateProgressDialog";
@@ -826,149 +827,151 @@ export default function HomePageClient({ machineId }: HomePageClientProps) {
 
       {/* Update Notification Banner */}
       {versionInfo?.updateAvailable && !showUpdateOverlay && (
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/10 px-5 py-4 text-primary">
-            <div className="flex min-h-[48px] items-center justify-between">
-              <div className="flex min-w-0 items-center gap-4">
-                <Icon
-                  name={
-                    isElectron && electronUpdateStatus.status === "downloading"
-                      ? "downloading"
-                      : "system_update_alt"
-                  }
-                  size={24}
-                />
-                <div>
-                  <p className="font-semibold text-sm">
-                    {t("updateAvailableTitle", {
-                      version: versionInfo.latest,
-                      desktop: isElectron ? ` ${t("desktopAppLabel")}` : "",
-                    })}
-                  </p>
-                  <p className="text-xs opacity-80 mt-0.5">
-                    {isElectron ? (
-                      <>
-                        {electronUpdateStatus.status === "checking" && t("checkingForUpdates")}
-                        {electronUpdateStatus.status === "available" &&
-                          t("versionAvailableForDownload", { version: versionInfo.latest })}
-                        {electronUpdateStatus.status === "downloading" &&
-                          t("downloadingUpdate", { percent: electronUpdateStatus.percent || 0 })}
-                        {electronUpdateStatus.status === "downloaded" && t("updateDownloaded")}
-                        {electronUpdateStatus.status === "error" &&
-                          t("autoUpdateFailed", {
-                            reason: electronUpdateStatus.message || t("unknownUpdateError"),
-                          })}
-                        {(electronUpdateStatus.status === "idle" ||
-                          electronUpdateStatus.status === "not-available") &&
-                          t("versionAvailableDesktop", { version: versionInfo.latest })}
-                      </>
-                    ) : versionInfo.autoUpdateSupported ? (
-                      t("updateAvailableDesc")
-                    ) : (
-                      versionInfo.autoUpdateError || t("manualUpdateRequired")
-                    )}
-                  </p>
-                  {!isElectron &&
-                    !versionInfo.autoUpdateSupported &&
-                    versionInfo.manualUpdateCommand && (
-                      <ManualUpdateCommand command={versionInfo.manualUpdateCommand} />
-                    )}
-                </div>
-              </div>
-
-              {isElectron ? (
-                <div className="flex gap-2 shrink-0 ml-4">
-                  {electronUpdateStatus.status === "available" && (
-                    <Button
-                      size="sm"
-                      onClick={() => globalThis.window.electronAPI?.downloadUpdate()}
-                    >
-                      {t("downloadUpdate")}
-                    </Button>
-                  )}
-                  {electronUpdateStatus.status === "downloading" && (
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/20">
-                      <Spinner size="sm" />
-                      <span className="text-xs font-semibold">
-                        {electronUpdateStatus.percent || 0}%
-                      </span>
-                    </div>
-                  )}
-                  {electronUpdateStatus.status === "downloaded" && (
-                    <Button
-                      size="sm"
-                      onClick={() => globalThis.window.electronAPI?.installUpdate()}
-                      className="animate-pulse"
-                    >
-                      {t("restartAndInstall")}
-                    </Button>
-                  )}
-                  {(electronUpdateStatus.status === "error" ||
-                    electronUpdateStatus.status === "idle" ||
-                    electronUpdateStatus.status === "not-available") && (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setElectronUpdateStatus({ status: "checking" });
-                        globalThis.window.electronAPI?.checkForUpdates().catch((err: any) => {
-                          setElectronUpdateStatus({ status: "error", message: err.message });
-                        });
-                      }}
-                    >
-                      {t("checkForUpdate")}
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <GuardedAction
-                  size="sm"
-                  onClick={handleUpdate}
-                  disabled={updating}
-                  reason={
-                    versionInfo.autoUpdateSupported
-                      ? undefined
-                      : versionInfo.autoUpdateError || t("manualUpdateRequired")
-                  }
-                  className="ml-4 shrink-0 font-semibold"
-                >
-                  {versionInfo.autoUpdateSupported ? t("updateNow") : t("manualUpdate")}
-                </GuardedAction>
-              )}
-            </div>
-
-            {/* Direct download fallback links shown if in Electron and auto-updater has failed, is idle, or has completed check */}
-            {isElectron &&
-              (electronUpdateStatus.status === "error" ||
-                electronUpdateStatus.status === "idle" ||
-                electronUpdateStatus.status === "available" ||
-                electronUpdateStatus.status === "not-available") && (
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-primary/20 mt-2 pt-3 gap-2">
-                  <p className="text-xs opacity-75">{t("directDownloadHint")}</p>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="secondary"
-                      onClick={() =>
-                        openExternal(
-                          `https://github.com/cheaper-inference/OmniRoute/releases/tag/v${versionInfo.latest}`
-                        )
-                      }
-                      className="text-xs py-1"
-                    >
-                      {t("releaseNotes")}
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => openExternal(electronDownload.url)}
-                      className="text-xs py-1"
-                    >
-                      {electronDownload.label}
-                    </Button>
+        <SimpleAdvancedDisclosure labelKey="showUpdateDetails">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 rounded-lg border border-primary/20 bg-primary/10 px-5 py-4 text-primary">
+              <div className="flex min-h-[48px] items-center justify-between">
+                <div className="flex min-w-0 items-center gap-4">
+                  <Icon
+                    name={
+                      isElectron && electronUpdateStatus.status === "downloading"
+                        ? "downloading"
+                        : "system_update_alt"
+                    }
+                    size={24}
+                  />
+                  <div>
+                    <p className="font-semibold text-sm">
+                      {t("updateAvailableTitle", {
+                        version: versionInfo.latest,
+                        desktop: isElectron ? ` ${t("desktopAppLabel")}` : "",
+                      })}
+                    </p>
+                    <p className="text-xs opacity-80 mt-0.5">
+                      {isElectron ? (
+                        <>
+                          {electronUpdateStatus.status === "checking" && t("checkingForUpdates")}
+                          {electronUpdateStatus.status === "available" &&
+                            t("versionAvailableForDownload", { version: versionInfo.latest })}
+                          {electronUpdateStatus.status === "downloading" &&
+                            t("downloadingUpdate", { percent: electronUpdateStatus.percent || 0 })}
+                          {electronUpdateStatus.status === "downloaded" && t("updateDownloaded")}
+                          {electronUpdateStatus.status === "error" &&
+                            t("autoUpdateFailed", {
+                              reason: electronUpdateStatus.message || t("unknownUpdateError"),
+                            })}
+                          {(electronUpdateStatus.status === "idle" ||
+                            electronUpdateStatus.status === "not-available") &&
+                            t("versionAvailableDesktop", { version: versionInfo.latest })}
+                        </>
+                      ) : versionInfo.autoUpdateSupported ? (
+                        t("updateAvailableDesc")
+                      ) : (
+                        versionInfo.autoUpdateError || t("manualUpdateRequired")
+                      )}
+                    </p>
+                    {!isElectron &&
+                      !versionInfo.autoUpdateSupported &&
+                      versionInfo.manualUpdateCommand && (
+                        <ManualUpdateCommand command={versionInfo.manualUpdateCommand} />
+                      )}
                   </div>
                 </div>
-              )}
+
+                {isElectron ? (
+                  <div className="flex gap-2 shrink-0 ml-4">
+                    {electronUpdateStatus.status === "available" && (
+                      <Button
+                        size="sm"
+                        onClick={() => globalThis.window.electronAPI?.downloadUpdate()}
+                      >
+                        {t("downloadUpdate")}
+                      </Button>
+                    )}
+                    {electronUpdateStatus.status === "downloading" && (
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary/20">
+                        <Spinner size="sm" />
+                        <span className="text-xs font-semibold">
+                          {electronUpdateStatus.percent || 0}%
+                        </span>
+                      </div>
+                    )}
+                    {electronUpdateStatus.status === "downloaded" && (
+                      <Button
+                        size="sm"
+                        onClick={() => globalThis.window.electronAPI?.installUpdate()}
+                        className="animate-pulse"
+                      >
+                        {t("restartAndInstall")}
+                      </Button>
+                    )}
+                    {(electronUpdateStatus.status === "error" ||
+                      electronUpdateStatus.status === "idle" ||
+                      electronUpdateStatus.status === "not-available") && (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          setElectronUpdateStatus({ status: "checking" });
+                          globalThis.window.electronAPI?.checkForUpdates().catch((err: any) => {
+                            setElectronUpdateStatus({ status: "error", message: err.message });
+                          });
+                        }}
+                      >
+                        {t("checkForUpdate")}
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <GuardedAction
+                    size="sm"
+                    onClick={handleUpdate}
+                    disabled={updating}
+                    reason={
+                      versionInfo.autoUpdateSupported
+                        ? undefined
+                        : versionInfo.autoUpdateError || t("manualUpdateRequired")
+                    }
+                    className="ml-4 shrink-0 font-semibold"
+                  >
+                    {versionInfo.autoUpdateSupported ? t("updateNow") : t("manualUpdate")}
+                  </GuardedAction>
+                )}
+              </div>
+
+              {/* Direct download fallback links shown if in Electron and auto-updater has failed, is idle, or has completed check */}
+              {isElectron &&
+                (electronUpdateStatus.status === "error" ||
+                  electronUpdateStatus.status === "idle" ||
+                  electronUpdateStatus.status === "available" ||
+                  electronUpdateStatus.status === "not-available") && (
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-primary/20 mt-2 pt-3 gap-2">
+                    <p className="text-xs opacity-75">{t("directDownloadHint")}</p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() =>
+                          openExternal(
+                            `https://github.com/cheaper-inference/OmniRoute/releases/tag/v${versionInfo.latest}`
+                          )
+                        }
+                        className="text-xs py-1"
+                      >
+                        {t("releaseNotes")}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => openExternal(electronDownload.url)}
+                        className="text-xs py-1"
+                      >
+                        {electronDownload.label}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+            </div>
           </div>
-        </div>
+        </SimpleAdvancedDisclosure>
       )}
 
       {/* Quick Start (controlled by Appearance setting, default on) */}
@@ -1056,15 +1059,17 @@ export default function HomePageClient({ machineId }: HomePageClientProps) {
       )}
 
       {showProviderTopologyOnHome && (
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
-          <HomeProviderTopologySection
-            providers={topologyProviders}
-            lastProvider={lastProvider}
-            errorProvider={errorProvider}
-            enabled={showProviderTopologyOnHome}
-          />
-          <HomeRecentRequests enabled={showProviderTopologyOnHome} />
-        </div>
+        <SimpleAdvancedDisclosure labelKey="showTopologyAndMetrics">
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-3">
+            <HomeProviderTopologySection
+              providers={topologyProviders}
+              lastProvider={lastProvider}
+              errorProvider={errorProvider}
+              enabled={showProviderTopologyOnHome}
+            />
+            <HomeRecentRequests enabled={showProviderTopologyOnHome} />
+          </div>
+        </SimpleAdvancedDisclosure>
       )}
 
       {/* Provider Models Modal */}

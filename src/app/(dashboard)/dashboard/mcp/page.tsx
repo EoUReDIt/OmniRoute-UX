@@ -13,6 +13,7 @@ import EmptyState from "@/shared/components/EmptyState";
 import Icon from "@/shared/components/Icon";
 import { copyToClipboard } from "@/shared/utils/clipboard";
 import McpDashboardPage from "../endpoint/components/MCPDashboard";
+import SimpleAdvancedDisclosure from "@/shared/components/dashboardUiMode/SimpleAdvancedDisclosure";
 
 type ServiceStatus = { online: boolean; loading: boolean };
 type McpTransport = "stdio" | "sse" | "streamable-http";
@@ -272,7 +273,13 @@ export default function McpPage() {
         />
       )}
 
-      {mcpEnabled ? <McpDashboardPage /> : <DisabledPanel />}
+      {mcpEnabled ? (
+        <SimpleAdvancedDisclosure labelKey="showMcpTools">
+          <McpDashboardPage />
+        </SimpleAdvancedDisclosure>
+      ) : (
+        <DisabledPanel />
+      )}
     </div>
   );
 }

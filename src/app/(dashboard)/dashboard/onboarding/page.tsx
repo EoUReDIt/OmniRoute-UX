@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Alert } from "@omniroute/ui-kit/alert";
@@ -45,6 +46,8 @@ export default function OnboardingWizard() {
   const tc = useTranslations("common");
   const baseUrl = useDisplayBaseUrl();
   const [step, setStep] = useState(0);
+  // Preselected. Written only when the operator continues past welcome.
+  const [uiModeChoice, setUiModeChoice] = useState<"simple" | "original">("simple");
   const [loading, setLoading] = useState(true);
   const apiEndpoint = `${baseUrl}/api/v1`;
 
@@ -121,6 +124,25 @@ export default function OnboardingWizard() {
 
   const handleNext = () => {
     if (step < STEPS.length - 1) setStep(step + 1);
+  };
+
+  const handleWelcomeContinue = async () => {
+    setErrorMessage("");
+    try {
+      const res = await fetch("/api/settings", {
+        method: "PATCH",
+        headers: bootstrapHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify({ dashboardUiMode: uiModeChoice }),
+      });
+      if (!res.ok) {
+        if (!handleBootstrapAuthFailure(res)) setErrorMessage(t("connectionError"));
+        return;
+      }
+    } catch {
+      setErrorMessage(t("connectionError"));
+      return;
+    }
+    handleNext();
   };
 
   const handleBack = () => {
@@ -413,6 +435,25 @@ export default function OnboardingWizard() {
             {currentStep.id === "welcome" && (
               <div className="text-center space-y-4">
                 <p className="text-text-muted">{t("welcomeDesc")}</p>
+                <RadioGroup
+                  aria-label={t("viewChoiceLabel")}
+                  value={uiModeChoice}
+                  onValueChange={(value) =>
+                    setUiModeChoice(value === "original" ? "original" : "simple")
+                  }
+                  className="text-start"
+                >
+                  <ChoiceCard
+                    value="simple"
+                    title={t("viewSimple")}
+                    description={t("viewSimpleDesc")}
+                  />
+                  <ChoiceCard
+                    value="original"
+                    title={t("viewFull")}
+                    description={t("viewFullDesc")}
+                  />
+                </RadioGroup>
                 <div className="mt-6 grid grid-cols-3 gap-3 items-stretch">
                   {[
                     { icon: "swap_horiz", label: t("multiProvider") },
@@ -602,6 +643,26 @@ export default function OnboardingWizard() {
                   copiedLabel={tc("copied")}
                   className="text-left"
                 />
+                {uiModeChoice === "simple" && (
+                  <div className="flex flex-col gap-2 text-left">
+                    <p className="text-sm font-medium text-text-main">{t("doneSimpleLinks")}</p>
+                    <Link
+                      className="text-sm text-primary hover:underline"
+                      href="/dashboard/api-manager"
+                    >
+                      {t("doneCreateKey")}
+                    </Link>
+                    <Link
+                      className="text-sm text-primary hover:underline"
+                      href="/dashboard/cli-code"
+                    >
+                      {t("doneCodingTool")}
+                    </Link>
+                    <Link className="text-sm text-primary hover:underline" href="/dashboard/mcp">
+                      {t("doneOpenMcp")}
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -622,7 +683,7 @@ export default function OnboardingWizard() {
                 </Button>
               )}
               {currentStep.id === "welcome" && (
-                <Button variant="primary" onClick={handleNext}>
+                <Button variant="primary" onClick={handleWelcomeContinue}>
                   {t("getStarted")}
                 </Button>
               )}

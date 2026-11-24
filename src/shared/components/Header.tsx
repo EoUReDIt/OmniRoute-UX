@@ -64,6 +64,7 @@ import { useIsElectron } from "@/shared/hooks/useElectron";
 import { KEAK_ACTIVE_PRODUCT, KEAK_PRODUCT_LINKS } from "@/shared/constants/keakProducts";
 import Button from "./Button";
 import Icon from "./Icon";
+import DashboardUiModeSwitch from "./dashboardUiMode/DashboardUiModeSwitch";
 
 const isE2EMode = process.env.NEXT_PUBLIC_OMNIROUTE_E2E_MODE === "1";
 
@@ -285,6 +286,7 @@ export default function Header({ onOpenCommandPalette }: HeaderProps) {
         )}
       </div>
       <div className="ms-auto flex shrink-0 items-center gap-2">
+        <DashboardUiModeSwitch />
         <ProductSwitcher
           items={KEAK_PRODUCT_LINKS}
           activeProduct={KEAK_ACTIVE_PRODUCT}

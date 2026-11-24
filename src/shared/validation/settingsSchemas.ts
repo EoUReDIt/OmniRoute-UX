@@ -226,6 +226,9 @@ export const updateSettingsSchema = z.object({
   cloudUrl: z.string().max(500).optional(),
   baseUrl: z.string().max(500).optional(),
   setupComplete: z.boolean().optional(),
+  // Instance-wide dashboard shell. Optional. Anything other than "simple" is
+  // original (Full view). A backup that omits the key still imports.
+  dashboardUiMode: z.enum(["original", "simple"]).optional(),
   blockedProviders: z.array(z.string().max(100)).optional(),
   noAuthFallbackDisabledProviders: z.array(z.string().max(100)).optional(),
   hidePaidModels: z.boolean().optional(),

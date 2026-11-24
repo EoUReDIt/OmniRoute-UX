@@ -72,6 +72,9 @@ function stubFetch(requireLogin: Record<string, unknown> | Error): void {
       if (url === "/api/auth/login" && method === "POST") {
         return jsonResponse({ success: true });
       }
+      if (url === "/api/settings" && method === "PATCH") {
+        return jsonResponse({ dashboardUiMode: "simple" });
+      }
       throw new Error(`Unexpected request: ${method} ${url}`);
     })
   );

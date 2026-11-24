@@ -42,6 +42,13 @@ import {
   normalizeHiddenSidebarGroupLabels,
 } from "@/shared/constants/sidebarGroupVisibility";
 import {
+  SIMPLE_NAV_ITEM_IDS,
+  SIMPLE_NAV_LABEL_FALLBACKS,
+  SIMPLE_NAV_LABEL_KEYS,
+  type SimpleNavItemId,
+} from "@/shared/constants/dashboardUiMode";
+import { useDashboardUiMode } from "@/shared/components/dashboardUiMode/DashboardUiModeProvider";
+import {
   HIDDEN_SIDEBAR_ITEMS_SETTING_KEY,
   HIDDEN_SIDEBAR_SECTIONS_SETTING_KEY,
   SIDEBAR_SETTINGS_UPDATED_EVENT,
@@ -144,6 +151,7 @@ export default function Sidebar({ isMacElectron = false }: SidebarProps) {
   }
   const t = useTranslations("sidebar");
   const tc = useTranslations("common");
+  const { mode: dashboardUiMode } = useDashboardUiMode();
   const { state: sidebarState, isMobile } = useSidebar();
   const collapsed = sidebarState === "collapsed" && !isMobile;
   const [showShutdownModal, setShowShutdownModal] = useState(false);
@@ -391,7 +399,29 @@ export default function Sidebar({ isMacElectron = false }: SidebarProps) {
         ]
       : visibleSections;
 
-  const activeHref = getActiveSidebarHref(pathname, [...allVisibleItems, ...pinnedItemList]);
+  const catalogById = new Map(
+    orderedSections.flatMap(getSectionItems).map((item) => [item.id, item])
+  );
+  const simpleNavItems = SIMPLE_NAV_ITEM_IDS.flatMap((id) => {
+    const item = catalogById.get(id);
+    if (!item) return [];
+    const labelKey = SIMPLE_NAV_LABEL_KEYS[id as SimpleNavItemId];
+    return [
+      {
+        ...item,
+        label: getSidebarLabel(labelKey, SIMPLE_NAV_LABEL_FALLBACKS[id as SimpleNavItemId]),
+        subtitle: undefined,
+      },
+    ];
+  });
+  const simpleQuery = searchQuery.trim().toLowerCase();
+  const visibleSimpleNav = simpleQuery
+    ? simpleNavItems.filter((item) => item.label.toLowerCase().includes(simpleQuery))
+    : simpleNavItems;
+  const activeHref = getActiveSidebarHref(
+    pathname,
+    dashboardUiMode === "simple" ? simpleNavItems : [...allVisibleItems, ...pinnedItemList]
+  );
 
   const isSearching = searchQuery.trim().length > 0;
   // Section master toggle: hidden sections drop out of the normal display,
@@ -499,11 +529,11 @@ export default function Sidebar({ isMacElectron = false }: SidebarProps) {
     setTimeout(() => globalThis.location.reload(), 3000);
   };
 
-  const renderNavLink = (item: any, keyPrefix?: string) => {
+  const renderNavLink = (item: any, keyPrefix?: string, allowPin = true) => {
     const active = !item.external && activeHref === item.href;
     const isItemPinned = pinnedItems.has(item.id);
     const itemKey = keyPrefix ? `${keyPrefix}-${item.href}` : item.href;
-    const showPin = !collapsed && item.id !== "home";
+    const showPin = allowPin && !collapsed && item.id !== "home";
     const title = item.subtitle ? `${item.label} — ${item.subtitle}` : item.label;
     // On the active (accent) row the subtitle inherits the accent ink; elsewhere it is muted.
     const subtitleClassName = active
@@ -679,96 +709,111 @@ export default function Sidebar({ isMacElectron = false }: SidebarProps) {
           aria-label={t("mainNavigation")}
           className="flex flex-col gap-3 [&_a]:scroll-mt-14 [&_button]:scroll-mt-14"
         >
-          {isSearching && displaySections.length === 0 && (
-            <p className="px-2 py-3 text-xs text-text-muted">{tc("noResults")}</p>
-          )}
-          {displaySections.map((section, idx) => {
-            const sectionId = section.id as SidebarSectionId;
-            const isExpanded =
-              isSearching ||
-              (sectionId === "pinned" ? !pinnedSectionCollapsed : expandedSections.has(sectionId));
-            const isPinned = pinnedSections.has(sectionId);
-            const isFirst = idx === 0;
-            const sectionItems = section.children.flatMap((child: any) =>
-              child.type === "group" ? child.items : [child]
-            );
-            const keyPrefix = section.id === "pinned" ? "pinned" : undefined;
+          {dashboardUiMode === "simple" ? (
+            <SidebarMenu>
+              {visibleSimpleNav.length === 0 && (
+                <p className="px-2 py-3 text-xs text-text-muted">{tc("noResults")}</p>
+              )}
+              {visibleSimpleNav.map((item) => renderNavLink(item, "simple", false))}
+            </SidebarMenu>
+          ) : (
+            <>
+              {isSearching && displaySections.length === 0 && (
+                <p className="px-2 py-3 text-xs text-text-muted">{tc("noResults")}</p>
+              )}
+              {displaySections.map((section, idx) => {
+                const sectionId = section.id as SidebarSectionId;
+                const isExpanded =
+                  isSearching ||
+                  (sectionId === "pinned"
+                    ? !pinnedSectionCollapsed
+                    : expandedSections.has(sectionId));
+                const isPinned = pinnedSections.has(sectionId);
+                const isFirst = idx === 0;
+                const sectionItems = section.children.flatMap((child: any) =>
+                  child.type === "group" ? child.items : [child]
+                );
+                const keyPrefix = section.id === "pinned" ? "pinned" : undefined;
 
-            // Collapsed (icon rail): flat items, a separator between sections.
-            if (collapsed) {
-              return (
-                <Fragment key={section.id}>
-                  {!isFirst && <SidebarSeparator />}
-                  <SidebarMenu>
-                    {sectionItems.map((item: any) => renderNavLink(item, keyPrefix))}
-                  </SidebarMenu>
-                </Fragment>
-              );
-            }
+                // Collapsed (icon rail): flat items, a separator between sections.
+                if (collapsed) {
+                  return (
+                    <Fragment key={section.id}>
+                      {!isFirst && <SidebarSeparator />}
+                      <SidebarMenu>
+                        {sectionItems.map((item: any) => renderNavLink(item, keyPrefix))}
+                      </SidebarMenu>
+                    </Fragment>
+                  );
+                }
 
-            // Sections without a visible title (e.g. Home) render their items directly.
-            if (section.showTitle === false) {
-              return (
-                <SidebarGroup key={section.id}>
-                  <SidebarMenu>
-                    {sectionItems.map((item: any) => renderNavLink(item, keyPrefix))}
-                  </SidebarMenu>
-                </SidebarGroup>
-              );
-            }
+                // Sections without a visible title (e.g. Home) render their items directly.
+                if (section.showTitle === false) {
+                  return (
+                    <SidebarGroup key={section.id}>
+                      <SidebarMenu>
+                        {sectionItems.map((item: any) => renderNavLink(item, keyPrefix))}
+                      </SidebarMenu>
+                    </SidebarGroup>
+                  );
+                }
 
-            return (
-              <SidebarGroup key={section.id}>
-                <SidebarGroupLabel className="group/header h-auto gap-1 px-0">
-                  {/* kit-exception: Native disclosure button on kit tokens (track F): a full-width section header
+                return (
+                  <SidebarGroup key={section.id}>
+                    <SidebarGroupLabel className="group/header h-auto gap-1 px-0">
+                      {/* kit-exception: Native disclosure button on kit tokens (track F): a full-width section header
                       inside the kit SidebarGroupLabel. The kit Disclosure wraps trigger and panel in its own
                       element, which would split SidebarGroupLabel from SidebarGroup. */}
-                  <button
-                    type="button"
-                    onClick={() => toggleSection(sectionId)}
-                    aria-expanded={isExpanded}
-                    aria-controls={`${navigationId}-${section.id}`}
-                    className="flex min-h-9 min-w-0 flex-1 items-center justify-between gap-2 rounded-control px-2 text-start uppercase hover:bg-surface hover:text-text-main"
-                  >
-                    <span className="truncate">{section.title}</span>
-                    <Icon
-                      name="expand_more"
-                      size={16}
-                      className={cn("transition-transform", isExpanded && "rotate-180")}
-                    />
-                  </button>
-                  {sectionId !== "pinned" && (
-                    // kit-exception: Native button on kit tokens (track F): a hover-revealed pin inside the kit
-                    // SidebarGroupLabel. The kit SidebarGroupAction is positioned with a physical `right`
-                    // (wrong side in RTL) and turns the label into an ellipsized block.
-                    <button
-                      type="button"
-                      onClick={() => togglePin(sectionId)}
-                      aria-label={`${isPinned ? t("unpinSection") : t("pinSectionOpen")}: ${section.title}`}
-                      aria-pressed={isPinned}
-                      title={isPinned ? t("unpinSection") : t("pinSectionOpen")}
-                      className={cn(
-                        "flex size-8 shrink-0 items-center justify-center rounded-control transition-opacity hover:bg-surface focus-visible:opacity-100",
-                        isPinned
-                          ? "text-text-main"
-                          : "text-text-muted opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100"
+                      <button
+                        type="button"
+                        onClick={() => toggleSection(sectionId)}
+                        aria-expanded={isExpanded}
+                        aria-controls={`${navigationId}-${section.id}`}
+                        className="flex min-h-9 min-w-0 flex-1 items-center justify-between gap-2 rounded-control px-2 text-start uppercase hover:bg-surface hover:text-text-main"
+                      >
+                        <span className="truncate">{section.title}</span>
+                        <Icon
+                          name="expand_more"
+                          size={16}
+                          className={cn("transition-transform", isExpanded && "rotate-180")}
+                        />
+                      </button>
+                      {sectionId !== "pinned" && (
+                        // kit-exception: Native button on kit tokens (track F): a hover-revealed pin inside the kit
+                        // SidebarGroupLabel. The kit SidebarGroupAction is positioned with a physical `right`
+                        // (wrong side in RTL) and turns the label into an ellipsized block.
+                        <button
+                          type="button"
+                          onClick={() => togglePin(sectionId)}
+                          aria-label={`${isPinned ? t("unpinSection") : t("pinSectionOpen")}: ${section.title}`}
+                          aria-pressed={isPinned}
+                          title={isPinned ? t("unpinSection") : t("pinSectionOpen")}
+                          className={cn(
+                            "flex size-8 shrink-0 items-center justify-center rounded-control transition-opacity hover:bg-surface focus-visible:opacity-100",
+                            isPinned
+                              ? "text-text-main"
+                              : "text-text-muted opacity-0 group-hover/header:opacity-100 group-focus-within/header:opacity-100"
+                          )}
+                        >
+                          <Icon name="push_pin" size={14} fill={isPinned} />
+                        </button>
                       )}
-                    >
-                      <Icon name="push_pin" size={14} fill={isPinned} />
-                    </button>
-                  )}
-                </SidebarGroupLabel>
+                    </SidebarGroupLabel>
 
-                {isExpanded && (
-                  <SidebarGroupContent id={`${navigationId}-${section.id}`}>
-                    <SidebarMenu>
-                      {section.children.map((child: any) => renderGroupChild(child, section.id))}
-                    </SidebarMenu>
-                  </SidebarGroupContent>
-                )}
-              </SidebarGroup>
-            );
-          })}
+                    {isExpanded && (
+                      <SidebarGroupContent id={`${navigationId}-${section.id}`}>
+                        <SidebarMenu>
+                          {section.children.map((child: any) =>
+                            renderGroupChild(child, section.id)
+                          )}
+                        </SidebarMenu>
+                      </SidebarGroupContent>
+                    )}
+                  </SidebarGroup>
+                );
+              })}
+            </>
+          )}
         </nav>
       </SidebarContent>
 

@@ -26,6 +26,7 @@ import {
 } from "@/shared/constants/sidebarVisibility";
 import Button from "./Button";
 import Icon from "./Icon";
+import { useDashboardUiMode } from "./dashboardUiMode/DashboardUiModeProvider";
 
 function isSidebarGroup(
   child: SidebarSectionChild
@@ -121,6 +122,7 @@ function PaletteOption({
 function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const t = useTranslations("sidebar");
+  const { mode: dashboardUiMode } = useDashboardUiMode();
   const inputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   const [hiddenItems, setHiddenItems] = useState<Set<string>>(new Set());
@@ -174,6 +176,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
             const subgroupLabel = safeTranslate(child.titleKey, child.titleFallback);
             return child.items
               .filter((item) => {
+                if (dashboardUiMode === "simple") return true;
                 if (!hiddenItems.has(item.id)) return true;
                 return (
                   activePreset === "essentials" &&
@@ -196,7 +199,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
               }));
           }
           const item = child as SidebarItemDefinition;
-          if (hiddenItems.has(item.id)) {
+          if (dashboardUiMode !== "simple" && hiddenItems.has(item.id)) {
             const keepForEssentials =
               activePreset === "essentials" &&
               ESSENTIALS_ADVANCED_TOOL_IDS.has(item.id as HideableSidebarItemId);
@@ -218,7 +221,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
           ];
         });
       }),
-    [hiddenItems, radarAdminUrl, safeTranslate, activePreset]
+    [hiddenItems, radarAdminUrl, safeTranslate, activePreset, dashboardUiMode]
   );
 
   // #17915: rows are ranked, not left in sidebar order, so a broad query such as "log" reaches the
