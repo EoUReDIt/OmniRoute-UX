@@ -22,7 +22,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-class RateLimiter {
+export class RateLimiter {
   private windowMs: number;
   private max: number;
   private keyPrefix: string;
@@ -37,12 +37,12 @@ class RateLimiter {
   private initTable(): void {
     const db = getDbInstance();
     db.exec(`
-      CREATE TABLE IF NOT EXISTS rate_limit_${this.keyPrefix} (
+      CREATE TABLE IF NOT EXISTS [rate_limit_${this.keyPrefix}] (
         key TEXT PRIMARY KEY,
         count INTEGER NOT NULL DEFAULT 1,
         reset_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_rate_limit_${this.keyPrefix}_reset ON rate_limit_${this.keyPrefix}(reset_at);
+      CREATE INDEX IF NOT EXISTS [idx_rate_limit_${this.keyPrefix}_reset] ON [rate_limit_${this.keyPrefix}](reset_at);
     `);
   }
 
@@ -53,63 +53,75 @@ class RateLimiter {
   private cleanExpired(): void {
     const db = getDbInstance();
     const now = Date.now();
-    db.prepare(`DELETE FROM rate_limit_${this.keyPrefix} WHERE reset_at < ?`).run(now);
+    db.prepare(`DELETE FROM [rate_limit_${this.keyPrefix}] WHERE reset_at < ?`).run(now);
+  }
+
+  // Check rate limit against a Request object
+  // Returns { exceeded, retryAfter, remaining, resetTime }
+  async check(request: Request): Promise<{ exceeded: boolean; retryAfter: number; remaining: number; resetTime: number }> {
+    const identifier = getClientIP(request)
+    const result = await this.consume(identifier)
+    return {
+      exceeded: !result.allowed,
+      retryAfter: result.retryAfter || 0,
+      remaining: result.remaining,
+      resetTime: result.resetAt,
+    }
   }
 
   async consume(identifier: string): Promise<RateLimitResult> {
-      this.cleanExpired();
+    this.cleanExpired();
 
-      const db = getDbInstance();
-      const key = this.getKey(identifier);
-      const now = Date.now();
-      const windowEnd = now + 60_000; // 60 second window
+    const db = getDbInstance();
+    const now = Date.now();
+    const resetAt = now + 60_000; // 60 second window
 
-      // Get current count
-      const row = db.prepare(`
-        SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
-      `).get(key) as RateLimitRecord | undefined;
+    // Get current count
+    const row = db.prepare(`
+      SELECT count, reset_at FROM [rate_limit_${this.keyPrefix}] WHERE key = ?
+    `).get(this.getKey(identifier)) as RateLimitRecord | undefined;
 
-      let count = 1;
-      let resetAt = windowEnd;
+    let count = 1;
+    let resetAtVal = resetAt;
 
-      if (row) {
-        if (now < row.resetAt) {
-          count = row.count + 1;
-          resetAt = row.resetAt;
-        } else {
-          // Window expired, reset
-          count = 1;
-          resetAt = windowEnd;
-        }
-      }
-
-      if (count > this.max) {
-        const retryAfter = Math.ceil((resetAt - now) / 1000);
-        return {
-          allowed: false,
-          remaining: 0,
-          resetAt,
-          retryAfter,
-        };
-      }
-
-      // Increment or insert
-      if (row) {
-        db.prepare(`
-          UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
-        `).run(count, resetAt, key);
+    if (row) {
+      if (now < row.resetAt) {
+        count = row.count + 1;
+        resetAtVal = row.resetAt;
       } else {
-        db.prepare(`
-          INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
-        `).run(key, count, resetAt);
+        // Window expired, reset
+        count = 1;
+        resetAtVal = resetAt;
       }
+    }
 
+    if (count > this.max) {
+      const retryAfter = Math.ceil((row?.resetAt || resetAtVal - now) / 1000);
       return {
-        allowed: true,
-        remaining: Math.max(0, this.max - count),
-        resetAt,
+        allowed: false,
+        remaining: 0,
+        resetAt: row?.resetAt || resetAtVal,
+        retryAfter,
       };
     }
+
+    // Increment or insert
+    if (row) {
+      db.prepare(`
+        UPDATE [rate_limit_${this.keyPrefix}] SET count = ?, reset_at = ? WHERE key = ?
+      `).run(count, resetAtVal, this.getKey(identifier));
+    } else {
+      db.prepare(`
+        INSERT INTO [rate_limit_${this.keyPrefix}] (key, count, reset_at) VALUES (?, ?, ?)
+      `).run(this.getKey(identifier), count, resetAtVal);
+    }
+
+    return {
+      allowed: true,
+      remaining: Math.max(0, this.max - count),
+      resetAt: resetAtVal,
+    };
+  }
 }
 
 // Export singleton instances
