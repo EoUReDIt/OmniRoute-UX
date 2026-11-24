@@ -29,6 +29,8 @@ export default function DashboardUiModeSwitch() {
 
   return (
     <>
+      {/* kit-exception: compact aria-pressed toggle in the header, with a compact and a full size on
+          the same tokens; it writes only dashboardUiMode. */}
       <button
         type="button"
         data-testid="dashboard-ui-mode-switch"
@@ -37,12 +39,12 @@ export default function DashboardUiModeSwitch() {
         onClick={() => void setMode(simple ? "original" : "simple")}
         className={
           compact
-            ? "inline-flex min-h-9 shrink-0 items-center gap-1 rounded-control border border-border bg-surface px-2 text-xs font-medium text-text-main hover:bg-surface-2"
-            : "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-sm font-medium text-text-main hover:bg-surface-2"
+            ? "inline-flex min-h-9 shrink-0 items-center gap-1 rounded-control border border-border bg-surface px-2 text-xs text-text-main hover:bg-surface-2"
+            : "inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-control border border-border bg-surface px-2.5 text-sm text-text-main hover:bg-surface-2"
         }
       >
         <Icon name={simple ? "grid_view" : "dashboard"} size={compact ? 16 : 18} />
-        <span>{label}</span>
+        <span className="font-medium">{label}</span>
       </button>
       <span className="sr-only" aria-live="polite">
         {label}

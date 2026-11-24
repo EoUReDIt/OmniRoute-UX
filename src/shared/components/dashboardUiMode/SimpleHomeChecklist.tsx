@@ -71,7 +71,9 @@ export default function SimpleHomeChecklist() {
     <Card padding="md" className="mb-4" data-testid="simple-home-checklist">
       <div className="flex flex-col gap-4">
         <div>
-          <h2 className="text-base font-semibold text-text-main">{t("checklistTitle")}</h2>
+          <h2 className="text-base text-text-main">
+            <span className="font-semibold">{t("checklistTitle")}</span>
+          </h2>
           <p className="mt-1 text-sm text-text-muted">{t("checklistIntro")}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">

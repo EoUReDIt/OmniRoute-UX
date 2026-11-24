@@ -38,8 +38,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
   const messages = normalizeComplianceEventTypes(
     pickMessages((await getMessages()) as Record<string, unknown>, routeNamespaces.chrome)
   );
-  const cookieStore = await cookies();
-  const sidebarDefaultOpen = cookieStore.get("ci_sidebar_state")?.value !== "0";
+  const sidebarDefaultOpen = (await cookies()).get("ci_sidebar_state")?.value !== "0";
   const dashboardUiMode = await resolveDashboardUiMode();
   return (
     <NextIntlClientProvider messages={messages}>

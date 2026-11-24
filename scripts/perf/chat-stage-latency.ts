@@ -21,7 +21,6 @@ import { pathToFileURL } from "node:url";
 
 process.env.OMNIROUTE_STAGE_TIMING = "1";
 process.env.REQUIRE_API_KEY = "true";
-process.env.DASHBOARD_PASSWORD = "";
 process.env.INITIAL_PASSWORD = "";
 delete process.env.JWT_SECRET;
 if (!process.env.API_KEY_SECRET) {

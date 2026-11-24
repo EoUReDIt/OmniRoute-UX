@@ -65,12 +65,13 @@ export default function StudioTopBar({ metrics, exportState }: StudioTopBarProps
             size="sm"
           />
           {mode === "simple" && !showAllModes && (
+            // kit-exception: compact text button beside the kit tab strip, shown only in Simple view.
             <button
               type="button"
-              className="min-h-9 rounded-control border border-border px-2 text-xs font-medium text-text-main"
+              className="min-h-9 rounded-control border border-border px-2 text-xs text-text-main"
               onClick={() => setShowModes(true)}
             >
-              {tHeader("showPlaygroundModes")}
+              <span className="font-medium">{tHeader("showPlaygroundModes")}</span>
             </button>
           )}
         </div>
