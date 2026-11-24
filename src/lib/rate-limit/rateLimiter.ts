@@ -1,6 +1,6 @@
 /**
  * Rate limiter with per-user and per-IP tracking.
- *
+ * 
  * Security gates:
  * - Per-user: 10 requests/minute (keyPrefix: settings-user)
  * - Per-IP: 5 requests/minute (keyPrefix: settings-ip)
@@ -22,7 +22,7 @@ interface RateLimitResult {
   retryAfter?: number;
 }
 
-class RateLimiter {
+export class RateLimiter {
   private windowMs: number;
   private max: number;
   private keyPrefix: string;
@@ -37,12 +37,12 @@ class RateLimiter {
   private initTable(): void {
     const db = getDbInstance();
     db.exec(`
-      CREATE TABLE IF NOT EXISTS rate_limit_${this.keyPrefix} (
+      CREATE TABLE IF NOT EXISTS [rate_limit_${this.keyPrefix}] (
         key TEXT PRIMARY KEY,
         count INTEGER NOT NULL DEFAULT 1,
         reset_at INTEGER NOT NULL
       );
-      CREATE INDEX IF NOT EXISTS idx_rate_limit_${this.keyPrefix}_reset ON rate_limit_${this.keyPrefix}(reset_at);
+      CREATE INDEX IF NOT EXISTS [idx_rate_limit_${this.keyPrefix}_reset] ON [rate_limit_${this.keyPrefix}](reset_at);
     `);
   }
 
@@ -53,69 +53,73 @@ class RateLimiter {
   private cleanExpired(): void {
     const db = getDbInstance();
     const now = Date.now();
-    db.prepare(`DELETE FROM rate_limit_${this.keyPrefix} WHERE reset_at < ?`).run(now);
+    db.prepare(`DELETE FROM [rate_limit_${this.keyPrefix}] WHERE reset_at < ?`).run(now);
+  }
+
+  // Check rate limit against a Request object
+  // Returns { exceeded, retryAfter, remaining, resetTime }
+  async check(request: Request): Promise<{ exceeded: boolean; retryAfter: number; remaining: number; resetTime: number }> {
+    const identifier = getClientIP(request)
+    const result = await this.consume(identifier)
+    return {
+      exceeded: !result.allowed,
+      retryAfter: result.retryAfter || 0,
+      remaining: result.remaining,
+      resetTime: result.resetAt,
+    }
   }
 
   async consume(identifier: string): Promise<RateLimitResult> {
     this.cleanExpired();
 
     const db = getDbInstance();
-    const key = this.getKey(identifier);
     const now = Date.now();
-    const windowEnd = now + 60_000; // 60 second window
+    const resetAt = now + 60_000; // 60 second window
 
     // Get current count
-    const row = db
-      .prepare(
-        `
-        SELECT count, reset_at FROM rate_limit_${this.keyPrefix} WHERE key = ?
-      `
-      )
-      .get(key) as RateLimitRecord | undefined;
+    const row = db.prepare(`
+      SELECT count, reset_at FROM [rate_limit_${this.keyPrefix}] WHERE key = ?
+    `).get(this.getKey(identifier)) as RateLimitRecord | undefined;
 
     let count = 1;
-    let resetAt = windowEnd;
+    let resetAtVal = resetAt;
 
     if (row) {
       if (now < row.resetAt) {
         count = row.count + 1;
-        resetAt = row.resetAt;
+        resetAtVal = row.resetAt;
       } else {
         // Window expired, reset
         count = 1;
-        resetAt = windowEnd;
+        resetAtVal = resetAt;
       }
     }
 
     if (count > this.max) {
-      const retryAfter = Math.ceil((resetAt - now) / 1000);
+      const retryAfter = Math.ceil((row?.resetAt || resetAtVal - now) / 1000);
       return {
         allowed: false,
         remaining: 0,
-        resetAt,
+        resetAt: row?.resetAt || resetAtVal,
         retryAfter,
       };
     }
 
     // Increment or insert
     if (row) {
-      db.prepare(
-        `
-          UPDATE rate_limit_${this.keyPrefix} SET count = ?, reset_at = ? WHERE key = ?
-        `
-      ).run(count, resetAt, key);
+      db.prepare(`
+        UPDATE [rate_limit_${this.keyPrefix}] SET count = ?, reset_at = ? WHERE key = ?
+      `).run(count, resetAtVal, this.getKey(identifier));
     } else {
-      db.prepare(
-        `
-          INSERT INTO rate_limit_${this.keyPrefix} (key, count, reset_at) VALUES (?, ?, ?)
-        `
-      ).run(key, count, resetAt);
+      db.prepare(`
+        INSERT INTO [rate_limit_${this.keyPrefix}] (key, count, reset_at) VALUES (?, ?, ?)
+      `).run(this.getKey(identifier), count, resetAtVal);
     }
 
     return {
       allowed: true,
       remaining: Math.max(0, this.max - count),
-      resetAt,
+      resetAt: resetAtVal,
     };
   }
 }
@@ -179,18 +183,15 @@ export async function rateLimitMiddleware(
     const retryAfter = Math.max(userResult.retryAfter || 0, ipResult.retryAfter || 0);
     headers["Retry-After"] = String(retryAfter);
     headers["X-RateLimit-Limit"] = "10"; // User limit
-
+    
     return {
-      response: new Response(
-        JSON.stringify({
-          error: "Rate limit exceeded",
-          retryAfter,
-        }),
-        {
-          status: 429,
-          headers,
-        }
-      ),
+      response: new Response(JSON.stringify({
+        error: "Rate limit exceeded",
+        retryAfter,
+      }), {
+        status: 429,
+        headers,
+      }),
       headers,
     };
   }
