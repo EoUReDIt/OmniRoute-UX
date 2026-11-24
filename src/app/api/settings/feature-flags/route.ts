@@ -142,6 +142,97 @@ function rejectInvalidEnumValue(
   );
 }
 
+type PutTarget = {
+  key: string;
+  value: string | undefined;
+  definition: (typeof FEATURE_FLAG_DEFINITIONS)[number];
+};
+
+/** Parse and validate the PUT body; returns either an error response or the target flag. */
+async function readPutTarget(
+  request: NextRequest
+): Promise<{ response: Response } | { target: PutTarget }> {
+  let rawBody: unknown;
+  try {
+    rawBody = await request.json();
+  } catch {
+    return { response: NextResponse.json({ error: "Invalid JSON body" }, { status: 400 }) };
+  }
+
+  const validation = validateBody(putFeatureFlagSchema, rawBody);
+  if (isValidationFailure(validation)) {
+    return { response: NextResponse.json({ error: validation.error }, { status: 400 }) };
+  }
+
+  const { key, value } = validation.data;
+
+  // Validate key against known definitions
+  const definition = FEATURE_FLAG_DEFINITIONS.find((d) => d.key === key);
+  if (!definition) {
+    return {
+      response: NextResponse.json({ error: `Unknown feature flag key: ${key}` }, { status: 400 }),
+    };
+  }
+
+  const authError = await authorizeProtectedFeatureFlagWrite(request, [key]);
+  if (authError) return { response: authError };
+
+  const enumError = rejectInvalidEnumValue(definition, key, value);
+  if (enumError) return { response: enumError };
+
+  return { target: { key, value, definition } };
+}
+
+/**
+ * Env-wins gates resolve with env > DB > default (the opposite of the generic db-wins
+ * helper above), so report their true resolution here too — the response must never
+ * tell an operator they enabled a gate that the env var still overrides (#9654 U7).
+ */
+function reportResolution(key: string, effectiveValue: string, source: string) {
+  if (key !== ADAPTIVE_VIRTUAL_LANES_FLAG_KEY) return { effectiveValue, source };
+  const state = resolveAdaptiveVirtualLanesFlag();
+  return { effectiveValue: state.enabled ? "true" : "false", source: state.source };
+}
+
+/** Write (or remove) the override and describe the before/after state for the response. */
+function applyFlagOverride({ key, value, definition }: PutTarget) {
+  // Capture previous state before modifying
+  const prevFlag = resolveAllFeatureFlags().find((f) => f.key === key);
+  const previousValue = prevFlag?.effectiveValue ?? definition.defaultValue;
+  const previousSource = prevFlag?.source ?? "default";
+
+  if (value === undefined) {
+    removeFeatureFlagOverride(key);
+  } else {
+    setFeatureFlagOverride(key, value);
+  }
+
+  // After write — get new effective value
+  const updatedFlag = resolveAllFeatureFlags().find((f) => f.key === key);
+  const reported = reportResolution(
+    key,
+    updatedFlag?.effectiveValue ?? definition.defaultValue,
+    updatedFlag?.source ?? "default"
+  );
+
+  return {
+    key,
+    effectiveValue: reported.effectiveValue,
+    source: reported.source,
+    previousValue,
+    previousSource,
+    ...(key === "UNPRICED_USAGE_BUDGET_POLICY"
+      ? {
+          configuredSource: updatedFlag.configuredSource,
+          sourceKey: updatedFlag.sourceKey,
+          previousConfiguredSource: prevFlag.configuredSource,
+          previousSourceKey: prevFlag.sourceKey,
+        }
+      : {}),
+    requiresRestart: definition.requiresRestart,
+  };
+}
+
 /**
  * PUT /api/settings/feature-flags
  * Set or remove a feature flag override.
@@ -153,79 +244,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let rawBody: unknown;
-  try {
-    rawBody = await request.json();
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-  }
-
-  const validation = validateBody(putFeatureFlagSchema, rawBody);
-  if (isValidationFailure(validation)) {
-    return NextResponse.json({ error: validation.error }, { status: 400 });
-  }
-
-  const { key, value } = validation.data;
-
-  // Validate key against known definitions
-  const definition = FEATURE_FLAG_DEFINITIONS.find((d) => d.key === key);
-  if (!definition) {
-    return NextResponse.json({ error: `Unknown feature flag key: ${key}` }, { status: 400 });
-  }
-
-  const authError = await authorizeProtectedFeatureFlagWrite(request, [key]);
-  if (authError) return authError;
-
-  const enumError = rejectInvalidEnumValue(definition, key, value);
-  if (enumError) return enumError;
+  const parsed = await readPutTarget(request);
+  if ("response" in parsed) return parsed.response;
 
   try {
-    // Capture previous state before modifying
-    const allFlagsBefore = resolveAllFeatureFlags();
-    const prevFlag = allFlagsBefore.find((f) => f.key === key);
-    const previousValue = prevFlag?.effectiveValue ?? definition.defaultValue;
-    const previousSource = prevFlag?.source ?? "default";
-
-    if (value === undefined) {
-      removeFeatureFlagOverride(key);
-    } else {
-      setFeatureFlagOverride(key, value);
-    }
-
-    // After write — get new effective value
-    const allFlagsAfter = resolveAllFeatureFlags();
-    const updatedFlag = allFlagsAfter.find((f) => f.key === key);
-    const newEffectiveValue = updatedFlag?.effectiveValue ?? definition.defaultValue;
-    const newSource = updatedFlag?.source ?? "default";
-
-    // Env-wins gates resolve with env > DB > default (the opposite of the
-    // generic db-wins helper above), so report their true resolution here too —
-    // the response must never tell an operator they enabled a gate that the env
-    // var still overrides (#9654 U7).
-    let reportedEffectiveValue = newEffectiveValue;
-    let reportedSource = newSource;
-    if (key === ADAPTIVE_VIRTUAL_LANES_FLAG_KEY) {
-      const state = resolveAdaptiveVirtualLanesFlag();
-      reportedEffectiveValue = state.enabled ? "true" : "false";
-      reportedSource = state.source;
-    }
-
-    return NextResponse.json({
-      key,
-      effectiveValue: reportedEffectiveValue,
-      source: reportedSource,
-      previousValue,
-      previousSource,
-      ...(key === "UNPRICED_USAGE_BUDGET_POLICY"
-        ? {
-            configuredSource: updatedFlag.configuredSource,
-            sourceKey: updatedFlag.sourceKey,
-            previousConfiguredSource: prevFlag.configuredSource,
-            previousSourceKey: prevFlag.sourceKey,
-          }
-        : {}),
-      requiresRestart: definition.requiresRestart,
-    });
+    return NextResponse.json(applyFlagOverride(parsed.target));
   } catch (error) {
     return NextResponse.json({ error: sanitizeErrorMessage(error) }, { status: 500 });
   }
