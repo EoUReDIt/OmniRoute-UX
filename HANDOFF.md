@@ -1,119 +1,47 @@
-# HANDOFF.md — All 6 Phases Complete — UX Simple Mode ✅
+# Handoff
 
-**Branch:** `release/v3.8.55` (MERGED)
-**Base Commit:** `3fe48ca17b5ea301e527d200cfff16a0f06d6e2b`
-**Status:** ✅ ALL 6 PHASES COMPLETE & MERGED
-**Updated:** 2026-11-19
+Verified 2026-11-24 with `gh pr list --state open` and release tip `a5fbc2fa`. Replaces the 2026-11-19 note that said all six phases were merged.
 
----
+## Open PRs
 
-## 🎯 Complete UX Simplification (Simple Mode) Implementation
+| PR | Verified | Next |
+| --- | --- | --- |
+| #2 | Open. Title: `PROPOSAL: opt-in faster gap and gated hintless-429 failover (needs owner approval)`. Head `36345d90` on `cursor/faster-queue-retry-defaults-c1e3`. Base `release/v3.8.55`. Updated 2026-11-24. | Re-review, then owner OK. Review state is not in the list payload. |
+| #30 | Open. `feat(dashboard): Simple view switch and short navigation`. Head `eb6b800923` on `cursor/simple-view-phase2-8062`. Updated 2026-11-24. | Reliability re-check, then owner OK. |
+| #34 | Open. `fix(api): mask credential settings in the JSON backup`. Head `56e9905d`. Base is `cursor/simple-view-phase2-8062` (#30's branch). Updated 2026-11-24. | After #30 merges, retarget to `release/v3.8.55`. Full CI runs only after that retarget. |
+| #32 | Open. Remove the invalid stub test and `ci-test-comparison.yml`. Head `7118eea4`. Base `release/v3.8.55`. | Review, then owner OK. |
+| #33 | Open. Skip Docker Hub publish on this fork. Head `293d42d3`. Base `release/v3.8.55`. | Review, then owner OK. |
+| #36 | Open. README accuracy for this fork. Head `5eb83ec8`. Base `release/v3.8.55`. | Review, then owner OK. |
+| #11, #17, #21, #29 | Open CI-fix PRs. Updated: #11 2026-11-24, #29 2026-11-24, #17 2026-11-21, #21 2026-11-21. | Close or rewrite only with owner OK. |
+| this branch | `ux/docs-handoff-branch-hygiene`. | This handoff. |
 
-All 6 phases per `docs/ux-simplification/PHASE1-feature-map-and-design.md` implemented and merged:
+## Merge order
 
-### Phase 1: Backend Foundation (PR #3) ✅
-- Secret redaction on `/api/settings` (boolean flags ONLY)
-- `requireManagementAuth` middleware for feature flags
-- Cache invalidation with `breakerGeneration`
-- Rate limiting (10/min per user, 5/min per IP)
-- Feature flag audit logging
+Each step needs review and owner OK.
 
-### Phase 2: Frontend Components (PR #4) ✅
-- `ModeToggle` — Simple/Full mode switch
-- `useMode` / `useLocalStorage` hooks
-- `AdvancedBanner` — Advanced screen indicators
-- Sidebar visibility gating logic
+1. #30, then retarget #34 to `release/v3.8.55`, then #34.
+2. #32, then #33, then #36.
+3. #2 after re-review.
 
-### Phase 3: Sidebar Section Visibility (PR #6) ✅
-- Enhanced `sidebarVisibility.ts` with section gating
-- Protected items always visible (`proxy`, `settings-sidebar`)
-- Simple mode shows only essential items
+## Done
 
-### Phase 4: Advanced Screen Banners (PR #8) ✅
-- `AdvancedBanner` component
-- `useBannerVisibility` hook
-- Banner hides in Simple mode
+| Item | Fact |
+| --- | --- |
+| #31 | Tip `a5fbc2fa`: `docs: add team compression skills under .cursor/skills (owner-approved) (#31)`. Owner: that branch was deleted with owner OK. |
 
-### Phase 5: Local Model / Routing Hint Cache (PR #9) ✅
-- `hintCache.ts` — SQLite cache with `breakerGeneration`
-- `localModel.ts` — Qwen3-0.6B, sandboxed, OFF by default
-- `featureFlagAudit.ts` — Audit logging, allowlist validation
-- `guidePrompt.ts` — Boolean flags ONLY (no secrets)
+## CI still open on release
 
-### Phase 6: Integration Tests (PR #10) ✅
-- 6 integration tests: toggle, local model, hint cache, persistence, security, performance
-- `hintCache.ts` enhanced with TTL, breaker generation
-- `/api/hint` endpoint with auth + rate limiting
-- `ModeToggle.tsx` with clickable text, OFF-by-default
+From 2026-11-24 logs (PR #32 typecheck/docs, push `a5fbc2fa` for `ci-release.yml`). Not re-run for this commit.
 
----
+| Gate | Fact |
+| --- | --- |
+| API Route Typecheck | 5 errors: `src/app/api/hint/route.ts` TS2724, `src/app/api/settings/route.ts` TS2724, `src/lib/rate-limit/rateLimiter.ts` TS2307, TS2451, TS2588. |
+| Docs Sync | `.env.example` is missing `DASHBOARD_PASSWORD` and `OMNIROUTE_STAGE_TIMING`. |
+| `ci-release.yml` | Run 45321908278 failed with 0 jobs. |
+| `ci-test-comparison.yml` | Still on this tip. Open #32 deletes it. |
 
-## 🛡️ Security Gates — All 7 Gates Verified Across All 6 Phases
+Not recorded here: vuln-ratchet ratio and the Node 27 note. Neither was re-checked with this pass's commands.
 
-| Gate | Status | Verified In |
-|------|--------|-------------|
-| **🔴 Secret Redaction** | ✅ | Phases 1-6 |
-| **🟠 Feature Flags** | ✅ | Phases 1-6 |
-| **🟡 Auth/Error Hygiene** | ✅ | Phases 1-6 |
+## Next
 
-### 🔴 Secret Redaction
-- `/api/settings` returns redacted config only (boolean flags)
-- Guide prompt = boolean flags ONLY (never decrypted secrets)
-- Server-side proxy if guide needs secrets
-- No secrets in cache, audit logs, or responses
-
-### 🟠 Feature Flag Security
-- `localGuideEnabled` OFF by default, explicit opt-in, audit-logged
-- `localGuideModel` validated against allowlist (Qwen3-0.6B, Qwen2.5-1.5B, Llama3.2-1B, Gemma-3-1B)
-- Local model sandboxed (no network, no FS beyond weights, resource limits)
-
-### 🟡 Auth & Error Hygiene
-- `requireAuth` on all new routes
-- `sanitizeErrorMessage` everywhere — strips stack traces, internal paths, config values
-- Aggressive rate limiting on `/api/settings` and guide endpoint (per-user, per-IP)
-
----
-
-## 📊 Branch Status — All Merged & Cleaned
-
-| Phase | Branch | PR | Merged | Deleted |
-|-------|--------|-----|--------|---------|
-| 1: Backend | `ux/simple-mode-phase1-backend` | #3 | ✅ | ✅ |
-| 2: Frontend | `ux/simple-mode-phase2-frontend` | #4 | ✅ | ✅ |
-| 3: Sidebar | `ux/simple-mode-phase1-sidebar` | #6 | ✅ | ✅ |
-| 4: Banners | `ux/simple-mode-phase1-banners` | #8 | ✅ | ✅ |
-| 5: Local Model | `ux/simple-mode-phase1-local-model` | #9 | ✅ | ✅ |
-| 6: Integration | `ux/simple-mode-phase1-integration-tests` | #10 | ✅ | ✅ |
-
-**All 6 feature branches deleted after merge** ✅
-
----
-
-## 👥 Agent Coordination Complete
-
-| Agent | Role | Status |
-|-------|------|--------|
-| **@frankie** | Repo manager — GitHub gateway, PR workflow, HANDOFF.md | ✅ Complete |
-| **@stackier** | Full-Stack Product Engineer — Implementation | ✅ Complete |
-| **@protecor-kiar** | Reliability/Security/UX Reviewer — Security gates | ✅ Complete |
-| **@jonin-le** | Skill Governance — Skills catalog | ✅ Complete |
-
----
-
-## 📝 Final Notes
-
-- **All 6 phases merged to `release/v3.8.55`** with full security compliance
-- **All 7 security gates verified by @protecor-kiar** across all phases
-- **Zero upstream pushes** — fork-only workflow maintained
-- **TDD enforced** — RED→GREEN→REFACTOR for every phase
-- **Branch hygiene maintained** — all feature branches deleted post-merge
-- **Documentation complete** — HANDOFF.md, BRANCH_HYGIENE.md updated
-
----
-
-## 🎉 Release Ready
-
-**Version:** `v3.8.55` (with UX Simple Mode)
-**Base Branch:** `release/v3.8.55`
-**Security Review:** @protecor-kiar — **ALL GATES PASSED**
-**Next:** Release automation, changelog, Docker publish
+One at a time, with owner OK: the merge order above; then API Route Typecheck; then Docs Sync; then vuln, lint, and unit; then #11, #17, #21, and #29.
