@@ -307,7 +307,8 @@ test("R9: chat.ts resolves the pin before the policy check; the route forwards i
   const resolveAt = chat.indexOf(
     "resolveRoutingModel(request, body, await resolveApiKeyForcedModel(request, log))"
   );
-  const policyAt = chat.indexOf("await enforceApiKeyPolicy(request, modelStr");
+  // The call sits inside the stage-timing wrapper (timeStage("apiKey.policy", ...)), so match the call itself.
+  const policyAt = chat.indexOf("enforceApiKeyPolicy(request, modelStr");
   assert.ok(resolveAt > 0, "chat.ts must route through the key pin");
   assert.ok(policyAt > resolveAt, "the pinned model must be the one the policy validates");
 

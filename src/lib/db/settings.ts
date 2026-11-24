@@ -28,6 +28,7 @@ import { resolveNoAuthSharedProviderProxy } from "./settings/noAuthProxyFallback
 import { PROXY_BULK_IMPORT_LIMIT_DEFAULT } from "@/shared/constants/proxyBulkImport";
 import { createBankedResetAutoApplyDefaults } from "@/shared/constants/bankedResetAutoApply";
 import { DEFAULT_NEW_CONNECTION_PROXY_ENABLED } from "@/shared/constants/newConnectionProxy.mjs";
+import { normalizeDashboardUiMode } from "@/shared/constants/dashboardUiMode";
 
 /**
  * Settings values stored encrypted at rest (AES-256-GCM via ./encryption).
@@ -225,6 +226,8 @@ export async function getSettings() {
     entraGraphFallbackEnabled: false,
     entraGraphClientSecret: "",
     mcpEnabled: false,
+    // Missing, or any value other than "simple", is the original shell.
+    dashboardUiMode: "original",
     a2aEnabled: false,
     hiddenSidebarItems: [],
     hiddenSidebarGroupLabels: [],
@@ -367,6 +370,7 @@ export async function getSettings() {
     }
   }
   applySessionAffinityLegacyFallback(settings);
+  settings.dashboardUiMode = normalizeDashboardUiMode(settings.dashboardUiMode);
 
   // Auto-complete onboarding for pre-configured deployments (Docker/VM)
   // If INITIAL_PASSWORD is set via env, this is a headless deploy — skip the wizard
@@ -423,6 +427,11 @@ export async function updateSettings(
     console.error("[DB] Pre-write backup failed:", error instanceof Error ? error.message : error);
   });
 
+  const normalizedUpdates =
+    "dashboardUiMode" in updates
+      ? { ...updates, dashboardUiMode: normalizeDashboardUiMode(updates.dashboardUiMode) }
+      : updates;
+
   const db = getDbInstance();
   const insert = db.prepare(
     "INSERT OR REPLACE INTO key_value (namespace, key, value) VALUES ('settings', ?, ?)"
@@ -432,7 +441,7 @@ export async function updateSettings(
     if (options?.expectedRevision !== undefined && options.expectedRevision !== currentRevision) {
       throw new SettingsRevisionConflictError(currentRevision);
     }
-    for (const [key, value] of Object.entries(updates)) {
+    for (const [key, value] of Object.entries(normalizedUpdates)) {
       const toStore = ENCRYPTED_SETTING_KEYS.has(key) ? encrypt(value as string) : value;
       insert.run(key, JSON.stringify(toStore));
     }
@@ -443,7 +452,7 @@ export async function updateSettings(
 
   // Bust proxy resolution cache when proxy toggle settings change
   const PROXY_TOGGLE_KEYS = ["proxyEnabled", "perKeyProxyEnabled"];
-  if (Object.keys(updates).some((k) => PROXY_TOGGLE_KEYS.includes(k))) {
+  if (Object.keys(normalizedUpdates).some((k) => PROXY_TOGGLE_KEYS.includes(k))) {
     bumpProxyConfigGeneration();
   }
 

@@ -7,7 +7,9 @@ import SegmentedControl from "@/shared/components/SegmentedControl";
 // src/app/(dashboard)/dashboard/playground/components/StudioTopBar.tsx
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useDashboardUiMode } from "@/shared/components/dashboardUiMode/DashboardUiModeProvider";
 import TokenCostCounter from "./TokenCostCounter";
 import ExportCodeModal from "./ExportCodeModal";
 import type { StreamMetrics } from "@/shared/schemas/playground";
@@ -41,18 +43,38 @@ const TABS: TabConfig[] = [
  */
 export default function StudioTopBar({ metrics, exportState }: StudioTopBarProps) {
   const t = useTranslations("playground");
+  const tHeader = useTranslations("header");
+  const { mode } = useDashboardUiMode();
+  const searchParams = useSearchParams();
   const [exportOpen, setExportOpen] = useState(false);
+  const [showModes, setShowModes] = useState(false);
+  const requestedTab = searchParams.get("tab");
+  const showAllModes =
+    mode !== "simple" || showModes || (requestedTab != null && requestedTab !== "chat");
+  const tabs = showAllModes ? TABS : TABS.filter((tab) => tab.id === "chat");
 
   return (
     <>
       <div className="flex items-center justify-between gap-3 px-4 py-2 border-b border-border bg-bg-alt shrink-0">
         {/* Tabs (kit capsule tabs via the SegmentedControl adapter) */}
-        <SegmentedControl
-          semantics="tabs"
-          options={TABS.map((tab) => ({ value: tab.id, label: t(tab.labelKey), icon: tab.icon }))}
-          aria-label={t("playgroundTabs")}
-          size="sm"
-        />
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <SegmentedControl
+            semantics="tabs"
+            options={tabs.map((tab) => ({ value: tab.id, label: t(tab.labelKey), icon: tab.icon }))}
+            aria-label={t("playgroundTabs")}
+            size="sm"
+          />
+          {mode === "simple" && !showAllModes && (
+            // kit-exception: compact text button beside the kit tab strip, shown only in Simple view.
+            <button
+              type="button"
+              className="min-h-9 rounded-control border border-border px-2 text-xs text-text-main"
+              onClick={() => setShowModes(true)}
+            >
+              <span className="font-medium">{tHeader("showPlaygroundModes")}</span>
+            </button>
+          )}
+        </div>
 
         {/* Right side: token counter + export button */}
         <div className="flex items-center gap-3">

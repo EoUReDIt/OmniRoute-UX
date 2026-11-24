@@ -1,6 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { Button, Card, Input } from "@/shared/components";
+import SimpleAdvancedDisclosure from "@/shared/components/dashboardUiMode/SimpleAdvancedDisclosure";
+import { useDashboardUiMode } from "@/shared/components/dashboardUiMode/DashboardUiModeProvider";
 import type { ProviderDisplayMode } from "../providerPageStorage";
 import { CategoryDot } from "./CategoryDot";
 import ProviderDisplayModeControl from "./ProviderDisplayModeControl";
@@ -110,6 +113,7 @@ export default function ProviderSummaryCard({
   tc,
   testingMode,
 }: ProviderSummaryCardProps) {
+  const { mode } = useDashboardUiMode();
   const categories = [
     { key: null, label: t("providerSummaryAll"), stat: summaryStats.all },
     { key: "oauth", label: t("oauthLabel"), stat: summaryStats.oauth },
@@ -222,91 +226,138 @@ export default function ProviderSummaryCard({
           <Button size="sm" icon="add" onClick={onNewProvider}>
             {providerText(t, "onboardingWizardShort", "Onboarding Wizard")}
           </Button>
-          <Button size="sm" variant="secondary" icon="upload_file" onClick={onImportFromFile}>
-            {providerText(t, "importFromFile", "Import from file")}
-          </Button>
-          <NewModelsButton />
-          {onImportOAuthExport && (
-            <Button size="sm" variant="secondary" icon="key_vertical" onClick={onImportOAuthExport}>
-              {providerText(t, "importOAuthExport", "Import OAuth export")}
-            </Button>
+          {mode === "simple" ? (
+            <SimpleAdvancedDisclosure labelKey="showProviderTools">
+              <div className="flex flex-wrap items-center gap-2">
+                <Button size="sm" variant="secondary" icon="upload_file" onClick={onImportFromFile}>
+                  {providerText(t, "importFromFile", "Import from file")}
+                </Button>
+                <NewModelsButton />
+                {onImportOAuthExport && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    icon="key_vertical"
+                    onClick={onImportOAuthExport}
+                  >
+                    {providerText(t, "importOAuthExport", "Import OAuth export")}
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  icon="play_arrow"
+                  loading={testingMode === "all"}
+                  onClick={() => onBatchTest("all")}
+                  disabled={!!testingMode}
+                  title={t("testAll")}
+                >
+                  {testingMode === "all" ? t("testing") : t("testAll")}
+                </Button>
+                <Link
+                  href="/dashboard/providers/services"
+                  className="inline-flex min-h-9 items-center rounded-control border border-border px-3 text-sm font-medium"
+                >
+                  {providerText(t, "embeddedServices", "Embedded services")}
+                </Link>
+              </div>
+            </SimpleAdvancedDisclosure>
+          ) : (
+            <>
+              <Button size="sm" variant="secondary" icon="upload_file" onClick={onImportFromFile}>
+                {providerText(t, "importFromFile", "Import from file")}
+              </Button>
+              <NewModelsButton />
+              {onImportOAuthExport && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  icon="key_vertical"
+                  onClick={onImportOAuthExport}
+                >
+                  {providerText(t, "importOAuthExport", "Import OAuth export")}
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="outline"
+                icon="play_arrow"
+                loading={testingMode === "all"}
+                onClick={() => onBatchTest("all")}
+                disabled={!!testingMode}
+                title={t("testAll")}
+              >
+                {testingMode === "all" ? t("testing") : t("testAll")}
+              </Button>
+            </>
           )}
-          <Button
-            size="sm"
-            variant="outline"
-            icon="play_arrow"
-            loading={testingMode === "all"}
-            onClick={() => onBatchTest("all")}
-            disabled={!!testingMode}
-            title={t("testAll")}
-          >
-            {testingMode === "all" ? t("testing") : t("testAll")}
-          </Button>
         </div>
 
-        <div className="border-t border-border pt-3 flex flex-wrap items-center gap-2 [&>button]:grow [&>button]:justify-center sm:[&>button]:grow-0">
-          {categories.map((cat) => {
-            const isActive =
-              (cat.key === null && !activeCategory && !showFreeOnly) ||
-              (cat.key === "free" && showFreeOnly) ||
-              (cat.key !== "free" &&
-                cat.key !== null &&
-                !showFreeOnly &&
-                activeCategory === cat.key);
-            return (
-              <Button
-                key={cat.key ?? "all"}
-                size="sm"
-                variant={isActive ? "secondary" : "ghost"}
-                aria-pressed={isActive}
-                onClick={() => onCategoryChange(cat.key, cat.key === "free")}
-                className="gap-1.5"
-                title={cat.title || cat.label}
-              >
-                {cat.key && <CategoryDot category={cat.key} label={cat.label} />}
-                <span>{cat.label}</span>
-                {/* Full-opacity muted ink: the old opacity-70 "/total" fell to 3.28:1 on the kit
+        <SimpleAdvancedDisclosure labelKey="showProviderPanels">
+          <div className="border-t border-border pt-3 flex flex-wrap items-center gap-2 [&>button]:grow [&>button]:justify-center sm:[&>button]:grow-0">
+            {categories.map((cat) => {
+              const isActive =
+                (cat.key === null && !activeCategory && !showFreeOnly) ||
+                (cat.key === "free" && showFreeOnly) ||
+                (cat.key !== "free" &&
+                  cat.key !== null &&
+                  !showFreeOnly &&
+                  activeCategory === cat.key);
+              return (
+                <Button
+                  key={cat.key ?? "all"}
+                  size="sm"
+                  variant={isActive ? "secondary" : "ghost"}
+                  aria-pressed={isActive}
+                  onClick={() => onCategoryChange(cat.key, cat.key === "free")}
+                  className="gap-1.5"
+                  title={cat.title || cat.label}
+                >
+                  {cat.key && <CategoryDot category={cat.key} label={cat.label} />}
+                  <span>{cat.label}</span>
+                  {/* Full-opacity muted ink: the old opacity-70 "/total" fell to 3.28:1 on the kit
                     button (axe color-contrast, F4). */}
-                <span className="text-[11px] text-text-muted">
-                  {cat.stat.configured}
-                  <span>/{cat.stat.total}</span>
-                </span>
-              </Button>
-            );
-          })}
-        </div>
+                  <span className="text-[11px] text-text-muted">
+                    {cat.stat.configured}
+                    <span>/{cat.stat.total}</span>
+                  </span>
+                </Button>
+              );
+            })}
+          </div>
 
-        <div className="border-t border-border pt-3 flex flex-wrap items-center gap-2 [&>button]:grow [&>button]:justify-center sm:[&>button]:grow-0">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted mr-1">
-            {providerText(t, "filterByMedia", "Media")}
-          </span>
-          {SERVICE_KIND_CHIPS.map((chip) => {
-            const isActive = activeServiceKind === chip.key;
-            return (
+          <div className="border-t border-border pt-3 flex flex-wrap items-center gap-2 [&>button]:grow [&>button]:justify-center sm:[&>button]:grow-0">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-text-muted mr-1">
+              {providerText(t, "filterByMedia", "Media")}
+            </span>
+            {SERVICE_KIND_CHIPS.map((chip) => {
+              const isActive = activeServiceKind === chip.key;
+              return (
+                <Button
+                  key={chip.key}
+                  size="sm"
+                  variant={isActive ? "secondary" : "ghost"}
+                  icon={chip.icon}
+                  onClick={() => onServiceKindChange(isActive ? null : chip.key)}
+                  aria-pressed={isActive}
+                  className="gap-1.5"
+                >
+                  <span>{providerText(t, chip.labelKey, chip.fallback)}</span>
+                </Button>
+              );
+            })}
+            {activeServiceKind && (
               <Button
-                key={chip.key}
                 size="sm"
-                variant={isActive ? "secondary" : "ghost"}
-                icon={chip.icon}
-                onClick={() => onServiceKindChange(isActive ? null : chip.key)}
-                aria-pressed={isActive}
-                className="gap-1.5"
+                variant="ghost"
+                onClick={() => onServiceKindChange(null)}
+                className="text-text-muted underline-offset-2 hover:underline"
               >
-                <span>{providerText(t, chip.labelKey, chip.fallback)}</span>
+                {providerText(t, "clearMediaFilter", "Clear")}
               </Button>
-            );
-          })}
-          {activeServiceKind && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => onServiceKindChange(null)}
-              className="text-text-muted underline-offset-2 hover:underline"
-            >
-              {providerText(t, "clearMediaFilter", "Clear")}
-            </Button>
-          )}
-        </div>
+            )}
+          </div>
+        </SimpleAdvancedDisclosure>
       </div>
     </Card>
   );

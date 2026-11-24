@@ -292,6 +292,258 @@
     "tests/unit/call-log-artifact-worker-tsx-cache.test.ts": {
       "replacement": "tests/unit/call-log-artifact-worker-native.test.ts",
       "reason": "v3.8.53 #18511 (fix(call-logs): avoid esbuild zombies in source workers) removed the tsx-loader path for the call-log artifact worker: source workers now run natively without CLI preloads, so TSX_DISABLE_CACHE and the tsx disk-cache environment no longer exist. The native-worker test added in the same PR pins the replacement behavior (writes survive idle restarts and forced close without esbuild children; no inherited CLI preloads)."
+    },
+    "src/app/api/settings/__tests__/mode-toggle.test.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/components/__tests__/ModeToggle.test.tsx": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/components/__tests__/mode-toggle/ModeToggle.test.tsx": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/__tests__/sidebar-visibility.test.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/__tests__/sidebarVisibility.test.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/full-view.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/mode-roundtrip.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/mode-toggle.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/protected-sidebar-items.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/sidebar-gating.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/sidebar-visibility.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/simple-nav.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/visual.spec.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/integration/simple-mode-toggle.test.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/integration/performance-baselines.test.ts": {
+      "sourceRemoved": [
+        "src/components/ModeToggle.tsx",
+        "src/lib/sidebarVisibility.ts",
+        "src/components/Sidebar.tsx"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/components/__tests__/local-storage-persistence/localStorage-persistence.test.tsx": {
+      "sourceRemoved": ["src/hooks/useLocalStorage.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/components/__tests__/localStorage-persistence.test.tsx": {
+      "sourceRemoved": ["src/hooks/useLocalStorage.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/localStorage-persistence.spec.ts": {
+      "sourceRemoved": ["src/hooks/useLocalStorage.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/components/__tests__/AdvancedBanner.test.tsx": {
+      "sourceRemoved": [
+        "src/components/AdvancedBanner.tsx",
+        "src/lib/bannerActions.ts",
+        "src/hooks/useBannerVisibility.ts"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/components/__tests__/advanced-banner/AdvancedBanner.test.tsx": {
+      "sourceRemoved": [
+        "src/components/AdvancedBanner.tsx",
+        "src/lib/bannerActions.ts",
+        "src/hooks/useBannerVisibility.ts"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/advanced-banner.spec.ts": {
+      "sourceRemoved": [
+        "src/components/AdvancedBanner.tsx",
+        "src/lib/bannerActions.ts",
+        "src/hooks/useBannerVisibility.ts"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/banner-actions.spec.ts": {
+      "sourceRemoved": [
+        "src/components/AdvancedBanner.tsx",
+        "src/lib/bannerActions.ts",
+        "src/hooks/useBannerVisibility.ts"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/banner-mode-integration.spec.ts": {
+      "sourceRemoved": [
+        "src/components/AdvancedBanner.tsx",
+        "src/lib/bannerActions.ts",
+        "src/hooks/useBannerVisibility.ts"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/banner-visibility.spec.ts": {
+      "sourceRemoved": [
+        "src/components/AdvancedBanner.tsx",
+        "src/lib/bannerActions.ts",
+        "src/hooks/useBannerVisibility.ts"
+      ],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/__tests__/hintCache.test.ts": {
+      "sourceRemoved": ["src/lib/cache/hintCache.ts", "src/app/api/hint/route.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/cache/__tests__/breaker-cache-invalidation.test.ts": {
+      "sourceRemoved": ["src/lib/cache/hintCache.ts", "src/app/api/hint/route.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/cache/__tests__/hintCache.test.ts": {
+      "sourceRemoved": ["src/lib/cache/hintCache.ts", "src/app/api/hint/route.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/hintCache.spec.ts": {
+      "sourceRemoved": ["src/lib/cache/hintCache.ts", "src/app/api/hint/route.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/e2e/routingHint.spec.ts": {
+      "sourceRemoved": ["src/lib/cache/hintCache.ts", "src/app/api/hint/route.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/integration/hint-cache-integration.test.ts": {
+      "sourceRemoved": ["src/lib/cache/hintCache.ts", "src/app/api/hint/route.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/__tests__/localModel.test.ts": {
+      "sourceRemoved": ["src/lib/localModel/localModel.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/localModel/__tests__/localModel.test.ts": {
+      "sourceRemoved": ["src/lib/localModel/localModel.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/integration/local-model-integration.test.ts": {
+      "sourceRemoved": ["src/lib/localModel/localModel.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/unit/guide-prompt.test.ts": {
+      "sourceRemoved": ["src/lib/guide/prompt.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/integration/security-regression.test.ts": {
+      "sourceRemoved": ["src/lib/guide/prompt.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/__tests__/featureFlagAudit.test.ts": {
+      "sourceRemoved": ["src/lib/audit/featureFlagAudit.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/audit/__tests__/feature-flag-audit.test.ts": {
+      "sourceRemoved": ["src/lib/audit/featureFlagAudit.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/audit/__tests__/featureFlagAudit.test.ts": {
+      "sourceRemoved": ["src/lib/audit/featureFlagAudit.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "tests/integration/feature-flag-persistence.test.ts": {
+      "sourceRemoved": ["src/lib/audit/featureFlagAudit.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/rate-limit/__tests__/rate-limit-settings.test.ts": {
+      "sourceRemoved": ["src/lib/rate-limit/rateLimiter.ts"],
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test."
+    },
+    "src/lib/api/__tests__/auth-middleware.test.ts": {
+      "strayFromCommit": "16866f3d7a62a85e0c6a3771045735dba47a8a6e",
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test. The add commit recorded here is the one the gate checks."
+    },
+    "src/lib/api/__tests__/secret-redaction.test.ts": {
+      "strayFromCommit": "86c38fac6d8b8bf820eee506e0d4b6768ebcac3a",
+      "reason": "PR #30 (parallel PRs #3-#10): invalid stub from that build. The test and the stub module it targeted were removed together. The real settings route, sidebar, and feature-flags route stay, and tests/unit/dashboard-ui-mode-settings.test.ts covers the shipped switch. Not a weakened assertion of a surviving test. The add commit recorded here is the one the gate checks."
     }
   },
   "tests/unit/catalog-updates-v3x.test.ts": "v3.8.45 #6248: fix(providers) remove deprecated MiMo V2 entries — os 5 asserts removidos pinavam specs de modelos mimo-v2-* que deixaram de existir no catálogo (54→49). Asserts seguem a remoção dos modelos, não enfraquecimento. Verificado legítimo. Prune após v3.8.45 mergear para main.",

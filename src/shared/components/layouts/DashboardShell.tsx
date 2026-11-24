@@ -9,6 +9,9 @@ import Breadcrumbs from "../Breadcrumbs";
 import MaintenanceBanner from "../MaintenanceBanner";
 import CommandPalette from "../CommandPalette";
 import NavigationProgress from "../NavigationProgress";
+import { DashboardUiModeProvider } from "../dashboardUiMode/DashboardUiModeProvider";
+import AdvancedScreenBanner from "../dashboardUiMode/AdvancedScreenBanner";
+import type { DashboardUiMode } from "@/shared/constants/dashboardUiMode";
 import { useIsElectron } from "@/shared/hooks/useElectron";
 import {
   installDashboardCsrfFetch,
@@ -28,9 +31,11 @@ const SIDEBAR_MOBILE_BREAKPOINT = 1024;
 export default function DashboardShell({
   children,
   sidebarDefaultOpen = true,
+  dashboardUiMode = "original",
 }: {
   children: React.ReactNode;
   sidebarDefaultOpen?: boolean;
+  dashboardUiMode?: DashboardUiMode;
 }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const isElectron = useIsElectron();
@@ -72,54 +77,57 @@ export default function DashboardShell({
   }, []);
 
   return (
-    <SidebarProvider
-      defaultOpen={sidebarDefaultOpen}
-      mobileBreakpoint={SIDEBAR_MOBILE_BREAKPOINT}
-      className="h-dvh min-h-0 w-full overflow-hidden border-t-0"
-    >
-      <Suspense fallback={null}>
-        <NavigationProgress />
-      </Suspense>
-      {/* Skip link before the sidebar: below the mobile breakpoint the sidebar is only a closed
+    <DashboardUiModeProvider initialMode={dashboardUiMode}>
+      <SidebarProvider
+        defaultOpen={sidebarDefaultOpen}
+        mobileBreakpoint={SIDEBAR_MOBILE_BREAKPOINT}
+        className="h-dvh min-h-0 w-full overflow-hidden border-t-0"
+      >
+        <Suspense fallback={null}>
+          <NavigationProgress />
+        </Suspense>
+        {/* Skip link before the sidebar: below the mobile breakpoint the sidebar is only a closed
           Sheet, so a link inside it would not exist. */}
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3 focus:bg-primary focus:text-accent-foreground focus:rounded-md focus:m-2"
-      >
-        {t("skipToContent")}
-      </a>
-      {/* `rtl:order-none` cancels the kit's physical `[data-side="right"] { order: 2 }`, which in
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:p-3 focus:bg-primary focus:text-accent-foreground focus:rounded-md focus:m-2"
+        >
+          {t("skipToContent")}
+        </a>
+        {/* `rtl:order-none` cancels the kit's physical `[data-side="right"] { order: 2 }`, which in
           an RTL flex row would lay the aside out on the visual left (tests/e2e/sidebar-rtl.spec.ts). */}
-      <KitSidebar
-        className="rtl:order-none"
-        collapsible="icon"
-        side={useSidebarSide()}
-        mobileLabel={t("mainNavigation")}
-        style={{ paddingTop: isMacElectron ? "var(--desktop-safe-top)" : undefined }}
-      >
-        <Sidebar isMacElectron={isMacElectron} />
-      </KitSidebar>
-      <SidebarInset
-        id="main-content"
-        className="relative flex min-h-0 flex-1 min-w-0 flex-col overflow-hidden"
-      >
-        {/* Inside the SidebarProvider: the Header's SidebarTrigger is the shell's single sidebar
+        <KitSidebar
+          className="rtl:order-none"
+          collapsible="icon"
+          side={useSidebarSide()}
+          mobileLabel={t("mainNavigation")}
+          style={{ paddingTop: isMacElectron ? "var(--desktop-safe-top)" : undefined }}
+        >
+          <Sidebar isMacElectron={isMacElectron} />
+        </KitSidebar>
+        <SidebarInset
+          id="main-content"
+          className="relative flex min-h-0 flex-1 min-w-0 flex-col overflow-hidden"
+        >
+          {/* Inside the SidebarProvider: the Header's SidebarTrigger is the shell's single sidebar
             toggle (collapse on desktop, opens the Sheet on mobile). */}
-        <Header onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
-        {!isE2EMode && <MaintenanceBanner />}
-        <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 lg:p-10">
-          {/* Fluid up to a 4K cap (3840px), centred beyond it. */}
-          <div className="max-w-[3840px] mx-auto w-full h-full min-h-0 flex flex-col">
-            <Breadcrumbs />
-            <div className="flex-1 min-h-0">{children}</div>
+          <Header onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
+          {!isE2EMode && <MaintenanceBanner />}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden custom-scrollbar p-4 sm:p-6 lg:p-10">
+            {/* Fluid up to a 4K cap (3840px), centred beyond it. */}
+            <div className="max-w-[3840px] mx-auto w-full h-full min-h-0 flex flex-col">
+              <Breadcrumbs />
+              <AdvancedScreenBanner />
+              <div className="flex-1 min-h-0">{children}</div>
+            </div>
           </div>
-        </div>
-      </SidebarInset>
+        </SidebarInset>
 
-      {/* Global notification toast system */}
-      <NotificationToast />
+        {/* Global notification toast system */}
+        <NotificationToast />
 
-      <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
-    </SidebarProvider>
+        <CommandPalette isOpen={commandPaletteOpen} onClose={() => setCommandPaletteOpen(false)} />
+      </SidebarProvider>
+    </DashboardUiModeProvider>
   );
 }

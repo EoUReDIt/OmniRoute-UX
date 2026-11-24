@@ -21,7 +21,13 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (relative: string) => fs.readFileSync(path.join(root, relative), "utf8");
-const sidebarSource = read("src/shared/components/Sidebar.tsx");
+// The row markup moved out of Sidebar.tsx into sidebarParts/; read both so the markers resolve.
+const sidebarSource = [
+  "src/shared/components/Sidebar.tsx",
+  "src/shared/components/sidebarParts/SidebarNavLink.tsx",
+]
+  .map(read)
+  .join("\n");
 const globals = read("src/app/globals.css");
 
 const TEXT_CLASS = /\btext-text-(main|muted)(?:\/(\d{1,3}))?\b/;

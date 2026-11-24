@@ -10,6 +10,8 @@ import FirstRunReadinessCard from "../dashboard/FirstRunReadinessCard";
 import HomePageHeader from "./HomePageHeader";
 import HomeSystemMetricsCards from "./HomeSystemMetricsCards";
 import UnpricedUsageBanner from "../dashboard/UnpricedUsageBanner";
+import SimpleHomeChecklist from "@/shared/components/dashboardUiMode/SimpleHomeChecklist";
+import SimpleAdvancedDisclosure from "@/shared/components/dashboardUiMode/SimpleAdvancedDisclosure";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +22,7 @@ export default async function HomePage() {
   return (
     <>
       <HomePageHeader />
+      <SimpleHomeChecklist />
       {isBootstrapped && <BootstrapBanner />}
       <FirstRunReadinessCard setupComplete={Boolean(settings.setupComplete)} />
       <UnpricedUsageBanner />
@@ -28,7 +31,9 @@ export default async function HomePage() {
       <VscodeCopilotBanner />
       <NewsBanner />
       <div className="mb-4">
-        <HomeSystemMetricsCards />
+        <SimpleAdvancedDisclosure labelKey="showTopologyAndMetrics">
+          <HomeSystemMetricsCards />
+        </SimpleAdvancedDisclosure>
       </div>
       <HomePageClient machineId={machineId} />
     </>

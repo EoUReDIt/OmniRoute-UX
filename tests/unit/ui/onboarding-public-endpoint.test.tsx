@@ -69,11 +69,16 @@ beforeEach(() => {
   replaceMock.mockReset();
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input) === "/api/settings") {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (url === "/api/settings" && method === "GET") {
         return jsonResponse({ setupComplete: false, apiPort: 20131 });
       }
-      throw new Error(`Unexpected request: ${String(input)}`);
+      if (url === "/api/settings" && method === "PATCH") {
+        return jsonResponse({ dashboardUiMode: "simple" });
+      }
+      throw new Error(`Unexpected request: ${method} ${url}`);
     })
   );
   container = document.createElement("div");

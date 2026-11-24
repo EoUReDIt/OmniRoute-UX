@@ -44,6 +44,8 @@ import { readActiveOnlyPreference, writeActiveOnlyPreference } from "./apiManage
 import { extractApiErrorMessage } from "@/shared/http/apiErrorMessage";
 import { hasProviderQuotaBypassScope } from "@/shared/constants/apiKeyPolicyScopes";
 import RoutingEntryLink from "@/shared/components/routing/RoutingEntryLink";
+import SimpleAdvancedDisclosure from "@/shared/components/dashboardUiMode/SimpleAdvancedDisclosure";
+import SimpleApiKeyBaseUrl from "@/shared/components/dashboardUiMode/SimpleApiKeyBaseUrl";
 import { ALL_COMBOS_ACCESS_RULE } from "@/shared/constants/comboAccess";
 
 import { useCreateKeySubmission } from "./useCreateKeySubmission";
@@ -626,7 +628,10 @@ export default function ApiManagerPageClient() {
         </div>
       </div>
 
-      <RoutingEntryLink />
+      <SimpleApiKeyBaseUrl />
+      <SimpleAdvancedDisclosure labelKey="showKeyRouting">
+        <RoutingEntryLink />
+      </SimpleAdvancedDisclosure>
 
       {/* Filter Bar — shown when there are keys */}
       {keys.length > 0 && (
@@ -1098,15 +1103,16 @@ export default function ApiManagerPageClient() {
         )}
       </Card>
 
-      {/* Key Templates Library */}
-      <KeyTemplatesLibrarySection
-        unreadable={unreadableTemplates}
-        loadError={templatesError}
-        loading={templatesLoading}
-        templates={templates}
-        onRefreshTemplates={fetchTemplates}
-        onUseTemplate={handleUseTemplateFromLibrary}
-      />
+      <SimpleAdvancedDisclosure labelKey="showKeyRouting">
+        <KeyTemplatesLibrarySection
+          unreadable={unreadableTemplates}
+          loadError={templatesError}
+          loading={templatesLoading}
+          templates={templates}
+          onRefreshTemplates={fetchTemplates}
+          onUseTemplate={handleUseTemplateFromLibrary}
+        />
+      </SimpleAdvancedDisclosure>
 
       {/* Save Key as Template Modal */}
       <SaveKeyAsTemplateModal
@@ -1151,165 +1157,169 @@ export default function ApiManagerPageClient() {
             />
           </div>
 
-          {/* Template Picker */}
-          <div className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-surface/40">
-            <Select
-              native
-              label={t("templatePickerLabel")}
-              value={selectedTemplateId}
-              onChange={(e) => void handleSelectTemplateInCreateModal(e.target.value)}
-              disabled={loadingTemplatePolicy || isSubmitting}
-              options={[
-                { value: "", label: t("templatePickerNone") },
-                ...templates.map((tpl) => ({
-                  value: tpl.id,
-                  label: `${tpl.name} (rev ${tpl.revision})`,
-                })),
-              ]}
-              hint={t("templatePickerHint")}
-            />
-            {loadingTemplatePolicy && (
-              <div className="flex items-center gap-2 text-xs text-text-muted">
-                <Spinner size="sm" />
-                <span>{t("loadingTemplatePolicy")}</span>
+          <SimpleAdvancedDisclosure labelKey="showKeyRouting">
+            <div className="flex flex-col gap-2 p-3 rounded-lg border border-border bg-surface/40">
+              <Select
+                native
+                label={t("templatePickerLabel")}
+                value={selectedTemplateId}
+                onChange={(e) => void handleSelectTemplateInCreateModal(e.target.value)}
+                disabled={loadingTemplatePolicy || isSubmitting}
+                options={[
+                  { value: "", label: t("templatePickerNone") },
+                  ...templates.map((tpl) => ({
+                    value: tpl.id,
+                    label: `${tpl.name} (rev ${tpl.revision})`,
+                  })),
+                ]}
+                hint={t("templatePickerHint")}
+              />
+              {loadingTemplatePolicy && (
+                <div className="flex items-center gap-2 text-xs text-text-muted">
+                  <Spinner size="sm" />
+                  <span>{t("loadingTemplatePolicy")}</span>
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                {summarizeKeyTemplatePolicy(draftCreatePolicy, t).map((badge) => (
+                  <span
+                    key={badge.id}
+                    className="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-2 border border-border/60 text-[11px] font-medium text-text-muted"
+                  >
+                    {badge.label}
+                  </span>
+                ))}
+                {selectedTemplateRef && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium">
+                    <Icon name="layers" size={12} />
+                    {t("templateSnapshotBadge", { revision: selectedTemplateRef.revision })}
+                  </span>
+                )}
+                {isCreatePolicyDirty && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning/10 text-warning text-[11px] font-medium">
+                    <Icon name="edit_note" size={12} />
+                    {t("policyCustomizedBadge")}
+                  </span>
+                )}
               </div>
-            )}
-            <div className="flex flex-wrap items-center gap-1.5 pt-1">
-              {summarizeKeyTemplatePolicy(draftCreatePolicy, t).map((badge) => (
-                <span
-                  key={badge.id}
-                  className="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-2 border border-border/60 text-[11px] font-medium text-text-muted"
-                >
-                  {badge.label}
-                </span>
-              ))}
-              {selectedTemplateRef && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-medium">
-                  <Icon name="layers" size={12} />
-                  {t("templateSnapshotBadge", { revision: selectedTemplateRef.revision })}
-                </span>
-              )}
-              {isCreatePolicyDirty && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning/10 text-warning text-[11px] font-medium">
-                  <Icon name="edit_note" size={12} />
-                  {t("policyCustomizedBadge")}
-                </span>
-              )}
             </div>
-          </div>
 
-          <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-border bg-surface/40">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-text-main">{t("managementAccess")}</p>
-              <p className="text-xs text-text-muted">{t("managementAccessDesc")}</p>
-            </div>
-            <Toggle
-              size="sm"
-              className="shrink-0"
-              checked={newKeyManageEnabled}
-              disabled={isSubmitting || loadingTemplatePolicy}
-              onChange={(checked) => {
-                setNewKeyManageEnabled(checked);
-                setCreateKeyFormState((prev) => ({ ...prev, manageEnabled: checked }));
-              }}
-              ariaLabel={t("managementAccess")}
-            />
-          </div>
-          <div className="flex flex-col gap-3 p-3 rounded-lg border border-border bg-surface/40">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm font-medium text-text-main">{t("selfServiceVisibility")}</p>
-              <p className="text-xs text-text-muted">{t("selfServiceVisibilityDesc")}</p>
-            </div>
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start justify-between gap-3 p-3 rounded-lg border border-border bg-surface/40">
               <div className="flex flex-col gap-1">
-                <p className="text-sm text-text-main">{t("ownUsageVisibility")}</p>
-                <p className="text-xs text-text-muted">{t("ownUsageVisibilityDesc")}</p>
+                <p className="text-sm font-medium text-text-main">{t("managementAccess")}</p>
+                <p className="text-xs text-text-muted">{t("managementAccessDesc")}</p>
               </div>
               <Toggle
                 size="sm"
                 className="shrink-0"
-                checked={newKeySelfUsageEnabled}
-                disabled={isSubmitting || loadingTemplatePolicy}
-                onChange={() =>
-                  setNewKeySelfUsageEnabled((prev) => {
-                    const next = !prev;
-                    if (!next) setNewKeyAccountQuotaEnabled(false);
-                    setCreateKeyFormState((form) => ({
-                      ...form,
-                      selfUsageEnabled: next,
-                      selfAccountQuotaEnabled: next ? form.selfAccountQuotaEnabled : false,
-                    }));
-                    return next;
-                  })
-                }
-                ariaLabel={t("ownUsageVisibility")}
-              />
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm text-text-main">{t("sharedAccountQuotaVisibility")}</p>
-                <p className="text-xs text-text-muted">{t("sharedAccountQuotaVisibilityDesc")}</p>
-              </div>
-              <Toggle
-                size="sm"
-                className="shrink-0"
-                checked={newKeyAccountQuotaEnabled}
-                disabled={isSubmitting || loadingTemplatePolicy || !newKeySelfUsageEnabled}
-                onChange={(checked) => {
-                  setNewKeyAccountQuotaEnabled(checked);
-                  setCreateKeyFormState((prev) => ({ ...prev, selfAccountQuotaEnabled: checked }));
-                }}
-                ariaLabel={t("sharedAccountQuotaVisibility")}
-              />
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex flex-col gap-1">
-                <p className="text-sm text-text-main">{t("localUsageCommand")}</p>
-                <p className="text-xs text-text-muted">{t("localUsageCommandDesc")}</p>
-              </div>
-              <Toggle
-                size="sm"
-                className="shrink-0"
-                checked={newKeyAllowUsageCommand}
+                checked={newKeyManageEnabled}
                 disabled={isSubmitting || loadingTemplatePolicy}
                 onChange={(checked) => {
-                  setNewKeyAllowUsageCommand(checked);
-                  setCreateKeyFormState((prev) => ({ ...prev, allowUsageCommand: checked }));
+                  setNewKeyManageEnabled(checked);
+                  setCreateKeyFormState((prev) => ({ ...prev, manageEnabled: checked }));
                 }}
-                ariaLabel={t("localUsageCommand")}
+                ariaLabel={t("managementAccess")}
               />
             </div>
-          </div>
-
-          {/* Expandable Full 6-Tab Policy Editor */}
-          <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface/20 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-medium text-text-main">{t("fullPolicyEditorTitle")}</p>
-                <p className="text-xs text-text-muted">{t("fullPolicyEditorDesc")}</p>
+            <div className="flex flex-col gap-3 p-3 rounded-lg border border-border bg-surface/40">
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-medium text-text-main">{t("selfServiceVisibility")}</p>
+                <p className="text-xs text-text-muted">{t("selfServiceVisibilityDesc")}</p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                icon={showFullPolicyEditor ? "expand_less" : "tune"}
-                onClick={() => setShowFullPolicyEditor((prev) => !prev)}
-              >
-                {showFullPolicyEditor ? t("hideFullPolicyEditor") : t("customizeFullPolicy")}
-              </Button>
-            </div>
-            {showFullPolicyEditor && (
-              <div className="pt-2 border-t border-border/60">
-                <KeyPolicySixTabEditor
-                  policy={draftCreatePolicy}
-                  formStateOverride={createKeyFormState}
-                  onFormStateChange={syncCreateKeyFormState}
-                  onValidationStateChange={handleEditorValidation}
-                  serverReferenceIssues={createKeyRefIssues}
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-text-main">{t("ownUsageVisibility")}</p>
+                  <p className="text-xs text-text-muted">{t("ownUsageVisibilityDesc")}</p>
+                </div>
+                <Toggle
+                  size="sm"
+                  className="shrink-0"
+                  checked={newKeySelfUsageEnabled}
                   disabled={isSubmitting || loadingTemplatePolicy}
+                  onChange={() =>
+                    setNewKeySelfUsageEnabled((prev) => {
+                      const next = !prev;
+                      if (!next) setNewKeyAccountQuotaEnabled(false);
+                      setCreateKeyFormState((form) => ({
+                        ...form,
+                        selfUsageEnabled: next,
+                        selfAccountQuotaEnabled: next ? form.selfAccountQuotaEnabled : false,
+                      }));
+                      return next;
+                    })
+                  }
+                  ariaLabel={t("ownUsageVisibility")}
                 />
               </div>
-            )}
-          </div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-text-main">{t("sharedAccountQuotaVisibility")}</p>
+                  <p className="text-xs text-text-muted">{t("sharedAccountQuotaVisibilityDesc")}</p>
+                </div>
+                <Toggle
+                  size="sm"
+                  className="shrink-0"
+                  checked={newKeyAccountQuotaEnabled}
+                  disabled={isSubmitting || loadingTemplatePolicy || !newKeySelfUsageEnabled}
+                  onChange={(checked) => {
+                    setNewKeyAccountQuotaEnabled(checked);
+                    setCreateKeyFormState((prev) => ({
+                      ...prev,
+                      selfAccountQuotaEnabled: checked,
+                    }));
+                  }}
+                  ariaLabel={t("sharedAccountQuotaVisibility")}
+                />
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-text-main">{t("localUsageCommand")}</p>
+                  <p className="text-xs text-text-muted">{t("localUsageCommandDesc")}</p>
+                </div>
+                <Toggle
+                  size="sm"
+                  className="shrink-0"
+                  checked={newKeyAllowUsageCommand}
+                  disabled={isSubmitting || loadingTemplatePolicy}
+                  onChange={(checked) => {
+                    setNewKeyAllowUsageCommand(checked);
+                    setCreateKeyFormState((prev) => ({ ...prev, allowUsageCommand: checked }));
+                  }}
+                  ariaLabel={t("localUsageCommand")}
+                />
+              </div>
+            </div>
+
+            {/* Expandable Full 6-Tab Policy Editor */}
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-surface/20 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-text-main">{t("fullPolicyEditorTitle")}</p>
+                  <p className="text-xs text-text-muted">{t("fullPolicyEditorDesc")}</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  icon={showFullPolicyEditor ? "expand_less" : "tune"}
+                  onClick={() => setShowFullPolicyEditor((prev) => !prev)}
+                >
+                  {showFullPolicyEditor ? t("hideFullPolicyEditor") : t("customizeFullPolicy")}
+                </Button>
+              </div>
+              {showFullPolicyEditor && (
+                <div className="pt-2 border-t border-border/60">
+                  <KeyPolicySixTabEditor
+                    policy={draftCreatePolicy}
+                    formStateOverride={createKeyFormState}
+                    onFormStateChange={syncCreateKeyFormState}
+                    onValidationStateChange={handleEditorValidation}
+                    serverReferenceIssues={createKeyRefIssues}
+                    disabled={isSubmitting || loadingTemplatePolicy}
+                  />
+                </div>
+              )}
+            </div>
+          </SimpleAdvancedDisclosure>
 
           {createError && (
             <Alert

@@ -8,6 +8,8 @@ import Icon from "@/shared/components/Icon";
 import { Button, CardSkeleton, Input } from "@/shared/components";
 import Select from "@/shared/components/Select";
 import { CLI_TOOLS } from "@/shared/constants/cliTools";
+import { SIMPLE_CODING_TOOL_IDS } from "@/shared/constants/dashboardUiMode";
+import { useDashboardUiMode } from "@/shared/components/dashboardUiMode/DashboardUiModeProvider";
 import { EXPECTED_CODE_COUNT } from "@/shared/schemas/cliCatalog";
 import { CliToolCard, CliConceptCard, CliComparisonCard } from "@/shared/components/cli";
 import { useToolBatchStatuses } from "@/shared/hooks/cli/useToolBatchStatuses";
@@ -57,6 +59,9 @@ export default function CliCodePageClient({
 }: CliCodePageClientProps) {
   const t = useTranslations("cliCode");
   const tCommon = useTranslations("cliCommon");
+  const tHeader = useTranslations("header");
+  const { mode: dashboardUiMode } = useDashboardUiMode();
+  const [showEveryTool, setShowEveryTool] = useState(false);
 
   // ── Batch statuses ──────────────────────────────────────────────────────────
   const { statuses, loading, error, refetch } = useToolBatchStatuses();
@@ -130,6 +135,12 @@ export default function CliCodePageClient({
       return true;
     });
   }, [search, detectionFilter, baseUrlFilter, statuses]);
+
+  const starterIds = new Set<string>(SIMPLE_CODING_TOOL_IDS);
+  const visibleTools =
+    dashboardUiMode === "simple" && !showEveryTool
+      ? filteredTools.filter(([id]) => starterIds.has(id))
+      : filteredTools;
 
   // ── Render ───────────────────────────────────────────────────────────────────
   const isLoadingOverall = loading || providersLoading;
@@ -234,17 +245,24 @@ export default function CliCodePageClient({
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {filteredTools.map(([id, tool]) => (
-            <CliToolCard
-              key={id}
-              tool={tool}
-              batchStatus={statuses?.[id] ?? null}
-              detailHref={`/dashboard/cli-code/${id}`}
-              hasActiveProviders={hasActiveProviders}
-            />
-          ))}
-        </div>
+        <>
+          {dashboardUiMode === "simple" && !showEveryTool && (
+            <Button variant="secondary" onClick={() => setShowEveryTool(true)}>
+              {tHeader("showEveryTool")}
+            </Button>
+          )}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {visibleTools.map(([id, tool]) => (
+              <CliToolCard
+                key={id}
+                tool={tool}
+                batchStatus={statuses?.[id] ?? null}
+                detailHref={`/dashboard/cli-code/${id}`}
+                hasActiveProviders={hasActiveProviders}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

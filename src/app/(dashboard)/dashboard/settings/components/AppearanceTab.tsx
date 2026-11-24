@@ -17,6 +17,7 @@ import {
   normalizeAppearancePalette,
 } from "@/shared/constants/appearancePalette";
 import AccountEmailVisibilitySetting from "./AccountEmailVisibilitySetting";
+import DashboardUiModeSwitch from "@/shared/components/dashboardUiMode/DashboardUiModeSwitch";
 
 export default function AppearanceTab() {
   const { theme, setTheme, isDark, palette, setPalette } = useTheme();
@@ -136,6 +137,9 @@ export default function AppearanceTab() {
   return (
     <Card title={t("appearance")} icon="palette">
       <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-3">
+          <DashboardUiModeSwitch />
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <p className="font-medium">{t("darkMode")}</p>

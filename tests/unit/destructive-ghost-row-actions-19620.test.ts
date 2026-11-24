@@ -218,8 +218,8 @@ const HOVER_ONLY_KEPT: Array<{ file: string; marker: string; reason: string }> =
     reason: "Logout in the header toolbar (pinned below).",
   },
   {
-    file: "src/shared/components/Sidebar.tsx",
-    marker: "setShowShutdownModal(true)",
+    file: "src/shared/components/sidebarParts/SidebarFooterBar.tsx",
+    marker: "onClick={onShutdown}",
     reason: "Sidebar nav item; opens a confirmation dialog.",
   },
 ];

@@ -81,25 +81,8 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         id: runtime
         with:
-          node-version: "26"
+          node-version: "24"
           package-manager-cache: false
-      - name: Check Node.js version (minimum 21)
-        run: |
-          NODE_VERSION=$(node --version | sed 's/v//')
-          MAJOR_VERSION=$(echo $NODE_VERSION | cut -d. -f1)
-          if [ "$MAJOR_VERSION" -lt 21 ]; then
-            echo "::error::Node.js version $NODE_VERSION is below minimum required version 21"
-            exit 1
-          fi
-          echo "Node.js version $NODE_VERSION meets minimum requirement (>= 21)"
-      - name: Install GitHub CLI
-        run: |
-          # Install gh CLI if not present
-          if ! command -v gh &> /dev/null; then
-            curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-            echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null
-            sudo apt update && sudo apt install -y gh
-          fi
       - name: Resolve the active release branch and its tip
         id: resolve
         env:
@@ -795,7 +778,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "26"
+          node-version: "24"
           cache: npm
 
       - uses: ./.github/actions/npm-ci-retry
@@ -896,7 +879,7 @@ jobs:
 
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
-          node-version: "26"
+          node-version: "24"
           cache: npm
 
       - uses: ./.github/actions/npm-ci-retry
