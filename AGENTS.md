@@ -336,9 +336,17 @@ Steps + baseline-freeze check: `docs/ops/WORKTREE_ISOLATION.md` → "Sync-back l
 
 ---
 
-## Upstream contributions
+## Source repository policy
 
-This checkout is the canonical `cheaper-inference/OmniRoute` repository (formerly `diegosouzapw/OmniRoute`; the old name redirects). Keep fork-only deployment and personal automation changes out of upstream PRs. Start upstream work from the active upstream default branch, not `main` (`git fetch upstream && git switch -c <branch-name> upstream/<default-branch>`), target that same release branch in the PR, stage only the intended files, run the focused checks, and use a Conventional Commit message (for example, `docs: slim AGENTS.md`).
+This repository is a fork of `cheaper-inference/OmniRoute` (formerly `diegosouzapw/OmniRoute`; the old name redirects) that deviates from its source on purpose. Owner policy (2026-11-24):
+
+- **No upstreaming.** Do not open PRs against, push to, or comment on the source repository.
+- **No downstream merges.** Do not add an `upstream` remote. Do not fetch, pull, merge, rebase or cherry-pick from the source, and do not use GitHub's "Sync fork" or `gh repo sync`, unless the owner decides that a specific change serves this fork's goals. Port such a change by hand as a normal PR on this fork.
+- **Targets stay on this fork.** Branch from and open PRs against `release/v3.8.55` here, never the source's branches.
+- "Sync-back landings" above is about this repository's own branches (`main` → `release/vX+1`). It does not mean syncing from the source.
+- Commands in this file or in `docs/` that name `cheaper-inference/OmniRoute` (for example `gh issue list --repo cheaper-inference/OmniRoute`) are read-only lookups against the source's tracker; issues are disabled on this fork.
+
+When a step in another document tells you to sync with, or send changes to, the source repository, do not follow it: flag the conflict to the owner instead.
 
 ---
 
