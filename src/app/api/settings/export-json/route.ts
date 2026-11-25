@@ -16,6 +16,7 @@ import {
   getAllDomainBudgets,
 } from "@/lib/db/usageAnalytics";
 import { isFreeModel, providerHasFreeModels } from "@/shared/utils/freeModels";
+import { maskSecretSettings } from "@/lib/api/settingsSecrets";
 
 /**
  * When `settings.hidePaidModels === true`, exports must not leak paid model ids
@@ -67,9 +68,10 @@ export async function GET(request: Request) {
 
     const rawSettings = await getSettings();
 
-    // REDACT sensitive security keys to maintain Zero-Trust posture
-    // even if the admin shares their backup file.
-    // Use destructuring (not delete) to avoid mutating a potentially cached object.
+    // Omit the management password and the login toggle. Configured credential
+    // settings are masked the same way as GET /api/settings, so a shared backup
+    // does not contain those plaintext secrets. Destructuring avoids mutating a
+    // cached settings object.
     const { password: _pw, requireLogin: _rl, ...safeSettings } = rawSettings;
 
     const providerConnections = await getProviderConnections();
@@ -85,7 +87,7 @@ export async function GET(request: Request) {
         : combosRaw;
 
     const exportData: Record<string, unknown> = {
-      settings: safeSettings,
+      settings: maskSecretSettings(safeSettings),
       providerConnections,
       providerNodes,
       combos,

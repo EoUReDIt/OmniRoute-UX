@@ -13,6 +13,11 @@ import { setSystemPromptConfig } from "@omniroute/open-sse/services/systemPrompt
 import { sanitizeErrorMessage } from "@omniroute/open-sse/utils/error";
 import { IMPORT_STRIPPED_SETTINGS_KEYS } from "@/shared/constants/securityImpactingSettings";
 import { updateSettingsSchema } from "@/shared/validation/settingsSchemas";
+import {
+  SETTINGS_SECRET_KEYS,
+  SETTINGS_SECRET_MASK,
+  unchangedSecretSettingKeys,
+} from "@/lib/api/settingsSecrets";
 
 const settingsKeySchema = updateSettingsSchema.partial();
 
@@ -33,6 +38,31 @@ function stripSecurityImpactingSettings(settings: object): Record<string, unknow
  * and named, so one bad value cannot poison the stored settings. Keys the schema does not know
  * (written by other routes, such as `tailscaleUrl`) are kept, as before.
  */
+/**
+ * Same rule as PATCH /api/settings: a masked secret means "keep what is stored", and a real
+ * value replaces it. The mask is removed before the security-key strip, then a real secret is
+ * put back, because oidcClientSecret and entraGraphClientSecret are otherwise dropped with the
+ * other password-gated keys. The mask string is never written.
+ */
+function restoreImportedSecrets(
+  original: Record<string, unknown>,
+  stripped: Record<string, unknown>
+): Record<string, unknown> {
+  const next = { ...stripped };
+  for (const key of unchangedSecretSettingKeys(original)) {
+    delete next[key];
+  }
+  for (const key of SETTINGS_SECRET_KEYS) {
+    if (!Object.hasOwn(original, key)) continue;
+    const value = original[key];
+    if (value === SETTINGS_SECRET_MASK) continue;
+    if (typeof value === "string" && value.length > 0) {
+      next[key] = value;
+    }
+  }
+  return next;
+}
+
 function dropInvalidSettings(settings: Record<string, unknown>) {
   const valid: Record<string, unknown> = {};
   const ignoredKeys: string[] = [];
@@ -67,8 +97,10 @@ function dropInvalidSettings(settings: Record<string, unknown>) {
  * 🔒 Zero-Trust: IMPORT_STRIPPED_SETTINGS_KEYS are stripped before insertion — the password
  *    and `currentPassword`, every key `PATCH /api/settings` only accepts after password
  *    re-auth (SECURITY_IMPACTING_SETTINGS_KEYS: requireLogin, the LOCAL_ONLY manage-scope
- *    bypass list/kill-switch, every OIDC key) and the dashboard session state — an import
- *    must not be a way around that re-auth, nor revive sessions a password change or a
+ *    bypass list/kill-switch, the OIDC and Entra keys) and the dashboard session state.
+ *    Credential settings are the exception: a masked value keeps the stored secret and a
+ *    real value replaces it, and the mask string is never stored. An import must not be
+ *    a way around re-auth for the other keys, nor revive sessions a password change or a
  *    sign-out ended.
  * 🔒 A pre-import backup is created automatically before any data is written.
  */
@@ -111,7 +143,9 @@ export async function POST(request: Request) {
     // 🔒 Zero-Trust: strip authentication + security-impacting config before migration
     let ignoredKeys: string[] = [];
     if (data.settings && typeof data.settings === "object") {
-      const checked = dropInvalidSettings(stripSecurityImpactingSettings(data.settings));
+      const checked = dropInvalidSettings(
+        restoreImportedSecrets(data.settings, stripSecurityImpactingSettings(data.settings))
+      );
       ignoredKeys = checked.ignoredKeys;
       data = { ...data, settings: checked.valid };
     }
